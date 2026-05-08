@@ -1,0 +1,35 @@
+name: peta_tani
+description: "Peta Tani — Aplikasi pencatatan aktivitas pertanian"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Icons
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+
+  # Navigation
+  go_router: ^15.1.2
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Intl & Formatting
+  intl: ^0.20.2
+  table_calendar: ^3.2.0
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

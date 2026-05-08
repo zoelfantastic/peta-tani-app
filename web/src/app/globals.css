@@ -1,0 +1,169 @@
+/* Peta Tani Admin - Global Styles */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Primary Colors */
+  --primary: #2D6A4F;
+  --primary-light: #40916C;
+  --primary-dark: #1B4332;
+  
+  /* Secondary */
+  --secondary: #D4A373;
+  --accent: #E76F51;
+  
+  /* Dark Theme */
+  --bg-dark: #0F172A;
+  --surface-dark: #1E293B;
+  --border-dark: #334155;
+  --text-dark: #F8FAFC;
+  --text-secondary-dark: #94A3B8;
+  --accent-admin: #22D3EE;
+  
+  /* Status */
+  --success: #2D6A4F;
+  --warning: #E9C46A;
+  --error: #E63946;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Ant Design Dark Theme Overrides */
+.ant-layout {
+  background: var(--bg-dark) !important;
+}
+
+.ant-layout-sider {
+  background: var(--surface-dark) !important;
+  border-right: 1px solid var(--border-dark) !important;
+}
+
+.ant-menu-dark {
+  background: transparent !important;
+}
+
+.ant-card {
+  border-radius: 12px !important;
+  border: 1px solid var(--border-dark) !important;
+  background: var(--surface-dark) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.ant-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+}
+
+.ant-table {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+/* KPI Stat Card styling */
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent-admin));
+}
+
+/* Fade-in animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.fade-in-up:nth-child(1) { animation-delay: 0.05s; }
+.fade-in-up:nth-child(2) { animation-delay: 0.1s; }
+.fade-in-up:nth-child(3) { animation-delay: 0.15s; }
+.fade-in-up:nth-child(4) { animation-delay: 0.2s; }
+
+/* Login page */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg-dark) 0%, #1a2744 50%, var(--primary-dark) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(45, 106, 79, 0.15), transparent 70%);
+  top: -200px;
+  right: -200px;
+}
+
+.login-container::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.08), transparent 70%);
+  bottom: -150px;
+  left: -150px;
+}
+
+.login-card {
+  background: var(--surface-dark) !important;
+  border: 1px solid var(--border-dark) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+  width: 400px;
+  padding: 40px !important;
+}
