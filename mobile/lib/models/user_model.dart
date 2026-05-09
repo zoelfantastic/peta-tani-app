@@ -8,6 +8,10 @@ class UserModel {
     this.photoUrl,
     this.createdAt,
     this.isProfileComplete = false,
+    this.namaKelompokTani,
+    this.kabupaten,
+    this.kecamatan,
+    this.desa,
   });
 
   final String uid;
@@ -16,8 +20,11 @@ class UserModel {
   final String? photoUrl;
   final DateTime? createdAt;
   final bool isProfileComplete;
+  final String? namaKelompokTani;
+  final String? kabupaten;
+  final String? kecamatan;
+  final String? desa;
 
-  /// Create from Firestore document map.
   factory UserModel.fromMap(Map<String, dynamic> map, String uid) {
     return UserModel(
       uid: uid,
@@ -28,10 +35,13 @@ class UserModel {
           ? DateTime.tryParse(map['createdAt'] as String)
           : null,
       isProfileComplete: map['isProfileComplete'] as bool? ?? false,
+      namaKelompokTani: map['nama_kelompok_tani'] as String?,
+      kabupaten: map['kabupaten'] as String?,
+      kecamatan: map['kecamatan'] as String?,
+      desa: map['desa'] as String?,
     );
   }
 
-  /// Convert to Firestore document map.
   Map<String, dynamic> toMap() {
     return {
       'phoneNumber': phoneNumber,
@@ -39,10 +49,13 @@ class UserModel {
       'photoUrl': photoUrl,
       'createdAt': createdAt?.toIso8601String(),
       'isProfileComplete': isProfileComplete,
+      'nama_kelompok_tani': namaKelompokTani,
+      'kabupaten': kabupaten,
+      'kecamatan': kecamatan,
+      'desa': desa,
     };
   }
 
-  /// Create a copy with updated fields.
   UserModel copyWith({
     String? uid,
     String? phoneNumber,
@@ -50,6 +63,10 @@ class UserModel {
     String? photoUrl,
     DateTime? createdAt,
     bool? isProfileComplete,
+    String? namaKelompokTani,
+    String? kabupaten,
+    String? kecamatan,
+    String? desa,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -58,6 +75,10 @@ class UserModel {
       photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
+      namaKelompokTani: namaKelompokTani ?? this.namaKelompokTani,
+      kabupaten: kabupaten ?? this.kabupaten,
+      kecamatan: kecamatan ?? this.kecamatan,
+      desa: desa ?? this.desa,
     );
   }
 }

@@ -18,6 +18,10 @@ export const setupProfil = onCall(async (request: CallableRequest) => {
     nomor_hp: request.auth.token.phone_number ?? "",
     foto_url: null,
     notif_enabled: true,
+    nama_kelompok_tani: (request.data.nama_kelompok_tani as string | null) ?? null,
+    kabupaten: (request.data.kabupaten as string | null) ?? null,
+    kecamatan: (request.data.kecamatan as string | null) ?? null,
+    desa: (request.data.desa as string | null) ?? null,
     created_at: FieldValue.serverTimestamp(),
     updated_at: FieldValue.serverTimestamp(),
   });
@@ -39,6 +43,18 @@ export const updateProfil = onCall(async (request: CallableRequest) => {
   }
   if ("foto_url" in request.data) {
     updates.foto_url = request.data.foto_url;
+  }
+  if ("nama_kelompok_tani" in request.data) {
+    updates.nama_kelompok_tani = request.data.nama_kelompok_tani ?? null;
+  }
+  if ("kabupaten" in request.data) {
+    updates.kabupaten = request.data.kabupaten ?? null;
+  }
+  if ("kecamatan" in request.data) {
+    updates.kecamatan = request.data.kecamatan ?? null;
+  }
+  if ("desa" in request.data) {
+    updates.desa = request.data.desa ?? null;
   }
 
   if (Object.keys(updates).length === 0) {
