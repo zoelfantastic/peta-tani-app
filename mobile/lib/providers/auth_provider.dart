@@ -118,17 +118,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Save profile after first login.
-  Future<bool> saveProfile({required String name}) async {
+  Future<bool> saveProfile({
+    required String name,
+    String? namaKelompokTani,
+    String? kabupaten,
+    String? kecamatan,
+    String? desa,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final user = await _authService.saveProfile(name: name);
+      final user = await _authService.saveProfile(
+        name: name,
+        namaKelompokTani: namaKelompokTani,
+        kabupaten: kabupaten,
+        kecamatan: kecamatan,
+        desa: desa,
+      );
       state = AuthState(status: AuthStatus.authenticated, user: user);
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Gagal menyimpan profil. Coba lagi.',
+      state = state.copyWith(isLoading: false, error: 'Gagal menyimpan profil. Coba lagi.');
+      return false;
+    }
+  }
+
+  /// Update profile fields from the edit profil screen.
+  Future<bool> updateProfile({
+    String? name,
+    String? namaKelompokTani,
+    String? kabupaten,
+    String? kecamatan,
+    String? desa,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final user = await _authService.updateProfile(
+        name: name,
+        namaKelompokTani: namaKelompokTani,
+        kabupaten: kabupaten,
+        kecamatan: kecamatan,
+        desa: desa,
       );
+      state = AuthState(status: AuthStatus.authenticated, user: user);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: 'Gagal memperbarui profil. Coba lagi.');
       return false;
     }
   }

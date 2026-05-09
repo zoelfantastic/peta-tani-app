@@ -29,29 +29,30 @@ class DefaultFirebaseOptions {
   // Cara termudah: jalankan `flutterfire configure --project=petatani`
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: 'YOUR_ANDROID_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    apiKey: 'AIzaSyAaOK1th4JrqG2tzy_OnGrBm5gJpckUoLo',
+    appId: '1:630313058128:android:0627121fbe3a2dc8427655',
+    messagingSenderId: '630313058128',
     projectId: 'petatani',
     storageBucket: 'petatani.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    apiKey: 'AIzaSyD6B8d7vGztr-WRiC9onybYfr7DLe6SGj4',
+    appId: '1:630313058128:ios:1c77c4467a0860a6427655',
+    messagingSenderId: '630313058128',
     projectId: 'petatani',
     storageBucket: 'petatani.firebasestorage.app',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    iosBundleId: 'com.petatani.peta_tani',
+    iosBundleId: 'com.petatani.petaTani',
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_WEB_API_KEY',
-    appId: 'YOUR_WEB_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+    apiKey: 'AIzaSyAQ6ZcbbF82T2Ch-3zwP6EAt7JK2KR9aKg',
+    appId: '1:630313058128:web:0dc4b82d64bab7ed427655',
+    messagingSenderId: '630313058128',
     projectId: 'petatani',
-    storageBucket: 'petatani.firebasestorage.app',
     authDomain: 'petatani.firebaseapp.com',
+    storageBucket: 'petatani.firebasestorage.app',
+    measurementId: 'G-ZD02B97SYJ',
   );
+
 }

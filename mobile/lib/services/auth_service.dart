@@ -79,7 +79,13 @@ class AuthService {
   // ─── Profile Setup ─────────────────────────────────────
 
   /// Save user profile to Firestore after first login.
-  Future<UserModel> saveProfile({required String name}) async {
+  Future<UserModel> saveProfile({
+    required String name,
+    String? namaKelompokTani,
+    String? kabupaten,
+    String? kecamatan,
+    String? desa,
+  }) async {
     final user = _auth.currentUser;
     if (user == null) throw const AuthException('Sesi tidak ditemukan.');
 
@@ -89,6 +95,10 @@ class AuthService {
       name: name,
       createdAt: DateTime.now(),
       isProfileComplete: true,
+      namaKelompokTani: namaKelompokTani,
+      kabupaten: kabupaten,
+      kecamatan: kecamatan,
+      desa: desa,
     );
 
     await _db.collection('users').doc(user.uid).set(
@@ -97,6 +107,31 @@ class AuthService {
     );
 
     return updated;
+  }
+
+  /// Update existing profile fields (partial update).
+  Future<UserModel> updateProfile({
+    String? name,
+    String? namaKelompokTani,
+    String? kabupaten,
+    String? kecamatan,
+    String? desa,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw const AuthException('Sesi tidak ditemukan.');
+
+    final updates = <String, dynamic>{};
+    if (name != null) updates['name'] = name;
+    if (namaKelompokTani != null) updates['nama_kelompok_tani'] = namaKelompokTani;
+    if (kabupaten != null) updates['kabupaten'] = kabupaten;
+    if (kecamatan != null) updates['kecamatan'] = kecamatan;
+    if (desa != null) updates['desa'] = desa;
+
+    await _db.collection('users').doc(user.uid).update(updates);
+
+    // Return refreshed profile
+    final doc = await _db.collection('users').doc(user.uid).get();
+    return UserModel.fromMap(doc.data()!, user.uid);
   }
 
   // ─── Session ───────────────────────────────────────────
