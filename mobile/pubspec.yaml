@@ -20,6 +20,9 @@ dependencies:
   # State Management
   flutter_riverpod: ^2.6.1
 
+  # Persistent storage
+  shared_preferences: ^2.3.0
+
   # Intl & Formatting
   intl: ^0.20.2
   table_calendar: ^3.2.0

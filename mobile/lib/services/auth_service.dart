@@ -1,40 +1,28 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 /// Authentication service — wraps Firebase Auth Phone OTP.
 ///
-/// Currently uses mock implementation since Firebase is not yet configured.
-/// Replace mock methods with real Firebase calls when ready:
-/// ```dart
-/// import 'package:firebase_auth/firebase_auth.dart';
-/// import 'package:cloud_firestore/cloud_firestore.dart';
-/// ```
+/// Session is persisted to disk via SharedPreferences so the user stays
+/// logged in across app restarts. When Firebase Auth is integrated, replace
+/// the mock methods with real Firebase calls — Firebase's own refresh token
+/// mechanism takes over persistence automatically.
 class AuthService {
   AuthService._();
   static final instance = AuthService._();
 
-  // ─── Mock State ────────────────────────────────────────
-  // These will be replaced with Firebase when configured.
-  UserModel? _currentUser;
+  static const _sessionKey = 'session_user';
+
   String? _verificationId;
-  bool _isLoggedIn = false;
-
-  /// Current user (null if not logged in).
-  UserModel? get currentUser => _currentUser;
-
-  /// Whether user is authenticated.
-  bool get isLoggedIn => _isLoggedIn;
-
-  /// Whether the current user has completed their profile.
-  bool get isProfileComplete => _currentUser?.isProfileComplete ?? false;
 
   // ─── Phone OTP Flow ────────────────────────────────────
 
   /// Step 1: Send OTP to phone number.
-  /// Returns the verification ID for OTP verification.
   ///
-  /// In production, this calls:
+  /// In production, replace with:
   /// ```dart
   /// await FirebaseAuth.instance.verifyPhoneNumber(
   ///   phoneNumber: '+62$phone',
@@ -47,23 +35,17 @@ class AuthService {
   /// );
   /// ```
   Future<String> sendOTP(String phoneNumber) async {
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
-
-    // Mock verification ID
     _verificationId =
         'mock_verification_${DateTime.now().millisecondsSinceEpoch}';
-
     debugPrint('[AuthService] OTP sent to +62$phoneNumber');
     debugPrint('[AuthService] Mock OTP code: 1234');
-
     return _verificationId!;
   }
 
-  /// Step 2: Verify OTP code.
-  /// Returns the authenticated [UserModel].
+  /// Step 2: Verify OTP code and persist session.
   ///
-  /// In production:
+  /// In production, replace with:
   /// ```dart
   /// final credential = PhoneAuthProvider.credential(
   ///   verificationId: verificationId,
@@ -74,29 +56,27 @@ class AuthService {
   Future<UserModel> verifyOTP(String otpCode) async {
     await Future.delayed(const Duration(milliseconds: 800));
 
-    // Mock: accept "1234" as valid OTP
     if (otpCode != '1234') {
-      throw AuthException('Kode OTP tidak valid. Silakan coba lagi.');
+      throw const AuthException('Kode OTP tidak valid. Silakan coba lagi.');
     }
 
-    // Mock: create/fetch user
-    _currentUser = UserModel(
+    final user = UserModel(
       uid: 'mock_user_${DateTime.now().millisecondsSinceEpoch}',
       phoneNumber: '+628123456789',
       createdAt: DateTime.now(),
       isProfileComplete: false,
     );
-    _isLoggedIn = true;
 
-    debugPrint('[AuthService] OTP verified, user: ${_currentUser!.uid}');
-    return _currentUser!;
+    await _saveSession(user);
+    debugPrint('[AuthService] OTP verified, session saved: ${user.uid}');
+    return user;
   }
 
   // ─── Profile Setup ─────────────────────────────────────
 
   /// Save user profile after first login.
   ///
-  /// In production:
+  /// In production, replace with:
   /// ```dart
   /// await FirebaseFirestore.instance
   ///   .collection('users')
@@ -106,37 +86,58 @@ class AuthService {
   Future<UserModel> saveProfile({required String name}) async {
     await Future.delayed(const Duration(milliseconds: 500));
 
-    _currentUser = _currentUser!.copyWith(name: name, isProfileComplete: true);
+    final current = await checkAuthState();
+    if (current == null) throw const AuthException('Sesi tidak ditemukan.');
 
-    debugPrint('[AuthService] Profile saved: ${_currentUser!.name}');
-    return _currentUser!;
+    final updated = current.copyWith(name: name, isProfileComplete: true);
+    await _saveSession(updated);
+    debugPrint('[AuthService] Profile saved: ${updated.name}');
+    return updated;
   }
 
   // ─── Session ───────────────────────────────────────────
 
-  /// Check if user is already logged in (on app start).
+  /// Load persisted session from disk on app start.
   ///
-  /// In production:
+  /// Returns null only if the user has never logged in or has signed out.
+  /// Session has no time-based expiry — valid until explicit sign-out.
+  ///
+  /// In production with Firebase Auth:
   /// ```dart
   /// final user = FirebaseAuth.instance.currentUser;
-  /// if (user != null) {
-  ///   final doc = await FirebaseFirestore.instance
-  ///     .collection('users').doc(user.uid).get();
-  ///   return UserModel.fromMap(doc.data()!, user.uid);
-  /// }
+  /// if (user == null) return null;
+  /// final doc = await FirebaseFirestore.instance
+  ///   .collection('users').doc(user.uid).get();
+  /// return UserModel.fromMap(doc.data()!, user.uid);
   /// ```
   Future<UserModel?> checkAuthState() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return _currentUser;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_sessionKey);
+    if (raw == null) return null;
+
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return UserModel.fromMap(map, map['uid'] as String);
+    } catch (_) {
+      await prefs.remove(_sessionKey);
+      return null;
+    }
   }
 
-  /// Sign out.
+  /// Sign out — clears persisted session.
   Future<void> signOut() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _currentUser = null;
-    _isLoggedIn = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_sessionKey);
     _verificationId = null;
-    debugPrint('[AuthService] User signed out');
+    debugPrint('[AuthService] User signed out, session cleared');
+  }
+
+  // ─── Internal ──────────────────────────────────────────
+
+  Future<void> _saveSession(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    final map = {...user.toMap(), 'uid': user.uid};
+    await prefs.setString(_sessionKey, jsonEncode(map));
   }
 }
 
