@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 interface AdminUser {
+  uid: string;
   email: string;
   nama: string;
 }
@@ -9,19 +9,15 @@ interface AdminUser {
 interface AuthStore {
   user: AdminUser | null;
   isAuthenticated: boolean;
-  login: (email: string, nama?: string) => void;
+  setUser: (user: AdminUser | null) => void;
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set) => ({
-      user: null,
-      isAuthenticated: false,
-      login: (email, nama = "Admin") =>
-        set({ user: { email, nama }, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
-    }),
-    { name: "peta-tani-auth" }
-  )
-);
+// No persist middleware — Firebase Auth persists the session natively
+// via IndexedDB. We only store display data for the UI here.
+export const useAuthStore = create<AuthStore>()((set) => ({
+  user: null,
+  isAuthenticated: false,
+  setUser: (user) => set({ user, isAuthenticated: user !== null }),
+  logout: () => set({ user: null, isAuthenticated: false }),
+}));

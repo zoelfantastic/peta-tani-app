@@ -14,9 +14,11 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
 } from "@ant-design/icons";
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MenuProps } from "antd";
+import { auth } from "@/lib/firebase";
 import { useAuthStore } from "@/stores/auth";
 
 const { Sider, Header, Content } = Layout;
@@ -87,14 +89,32 @@ export default function DashboardLayout({
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
+
+  // Restore user state from Firebase Auth on mount (handles page refresh).
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? "",
+          nama: firebaseUser.displayName ?? (firebaseUser.email ?? "Admin").split("@")[0],
+        });
+      } else {
+        logout();
+        router.push("/login");
+      }
+    });
+    return unsubscribe;
+  }, [setUser, logout, router]);
 
   const handleMenuClick: MenuProps["onClick"] = (e) => {
     router.push(e.key);
   };
 
-  const handleUserMenu: MenuProps["onClick"] = (e) => {
+  const handleUserMenu: MenuProps["onClick"] = async (e) => {
     if (e.key === "logout") {
+      await signOut(auth);
       logout();
       router.push("/login");
     }

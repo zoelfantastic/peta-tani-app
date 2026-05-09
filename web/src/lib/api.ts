@@ -1,6 +1,6 @@
 import axios from "axios";
+import { auth } from "./firebase";
 
-// Firebase Cloud Functions base URL — set NEXT_PUBLIC_FUNCTIONS_URL in .env.local
 const FUNCTIONS_BASE = process.env.NEXT_PUBLIC_FUNCTIONS_URL ?? "";
 
 export const api = axios.create({
@@ -9,21 +9,22 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("auth-token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+// Always fetch a fresh token from Firebase Auth — SDK auto-refreshes it
+// when expired (every 1 hour), so we never send a stale token.
+api.interceptors.request.use(async (config) => {
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem("auth-token");
+      await auth.signOut();
       window.location.href = "/login";
     }
     return Promise.reject(err);

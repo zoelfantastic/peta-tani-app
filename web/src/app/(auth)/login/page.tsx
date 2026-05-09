@@ -2,8 +2,10 @@
 
 import { Card, Form, Input, Button, Typography, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { auth } from "@/lib/firebase";
 import { useAuthStore } from "@/stores/auth";
 
 const { Title, Text } = Typography;
@@ -11,17 +13,38 @@ const { Title, Text } = Typography;
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const login = useAuthStore((s) => s.login);
+  const setUser = useAuthStore((s) => s.setUser);
 
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
-    // Mock auth — swap for Firebase Auth signInWithEmailAndPassword
-    setTimeout(() => {
-      setLoading(false);
-      login(values.email);
+    try {
+      const result = await signInWithEmailAndPassword(
+        auth,
+        values.email,
+        values.password
+      );
+      const firebaseUser = result.user;
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? values.email,
+        nama: firebaseUser.displayName ?? values.email.split("@")[0],
+      });
       message.success("Berhasil masuk!");
       router.push("/dashboard");
-    }, 1000);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+        message.error("Email atau kata sandi salah.");
+      } else if (code === "auth/user-not-found") {
+        message.error("Akun tidak ditemukan.");
+      } else if (code === "auth/too-many-requests") {
+        message.error("Terlalu banyak percobaan. Coba beberapa saat lagi.");
+      } else {
+        message.error("Gagal masuk. Silakan coba lagi.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
