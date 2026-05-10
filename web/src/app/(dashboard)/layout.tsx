@@ -88,6 +88,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [claimReady, setClaimReady] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { user, setUser, logout } = useAuthStore();
@@ -122,6 +123,7 @@ export default function DashboardLayout({
         email: firebaseUser.email ?? "",
         nama: firebaseUser.displayName ?? (firebaseUser.email ?? "Admin").split("@")[0],
       });
+      setClaimReady(true);
     });
     return unsubscribe;
   }, [setUser, logout, router]);
@@ -297,7 +299,7 @@ export default function DashboardLayout({
           </div>
         </Header>
 
-        {/* Page Content */}
+        {/* Page Content — only render after admin claim is confirmed */}
         <Content
           style={{
             padding: 24,
@@ -305,7 +307,7 @@ export default function DashboardLayout({
             background: "#0F172A",
           }}
         >
-          {children}
+          {claimReady ? children : null}
         </Content>
       </Layout>
     </Layout>
