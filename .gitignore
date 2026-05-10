@@ -1,0 +1,2 @@
+# Service account keys — never commit credentials
+backend/scripts/service-account*.json
