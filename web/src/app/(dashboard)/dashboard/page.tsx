@@ -8,8 +8,9 @@ import {
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, orderBy, query, limit } from "firebase/firestore";
+import { collection, orderBy, query, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeSnapshot } from "@/lib/firebase-utils";
 import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
@@ -62,14 +63,14 @@ export default function DashboardPage() {
   const [lahanMap, setLahanMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+    const unsubUsers = safeSnapshot(collection(db, "users"), (snap) => {
       setTotalPetani(snap.size);
       const map: Record<string, string> = {};
       snap.docs.forEach((d) => { map[d.id] = d.data().name ?? d.data().nama ?? d.id; });
       setUserMap(map);
     });
 
-    const unsubLahan = onSnapshot(collection(db, "lahan"), (snap) => {
+    const unsubLahan = safeSnapshot(collection(db, "lahan"), (snap) => {
       setTotalLahan(snap.size);
       const map: Record<string, string> = {};
       snap.docs.forEach((d) => { map[d.id] = d.data().jenis_tanaman ?? d.data().tanaman ?? ""; });
@@ -84,7 +85,7 @@ export default function DashboardPage() {
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
     const q = query(collection(db, "aktivitas"), orderBy("tanggalMulai", "desc"), limit(10));
-    const unsubAktivitas = onSnapshot(q, (snap) => {
+    const unsubAktivitas = safeSnapshot(q, (snap) => {
       let bulanIni = 0;
       let panen = 0;
       const rows: AktivitasRow[] = [];

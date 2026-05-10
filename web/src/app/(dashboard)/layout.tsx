@@ -15,6 +15,7 @@ import {
   MenuUnfoldOutlined,
 } from "@ant-design/icons";
 import { signOut, onAuthStateChanged } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import type { MenuProps } from "antd";
@@ -92,18 +93,35 @@ export default function DashboardLayout({
   const { user, setUser, logout } = useAuthStore();
 
   // Restore user state from Firebase Auth on mount (handles page refresh).
+  // Also verifies admin claim — redirects to login if user is not an admin.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email ?? "",
-          nama: firebaseUser.displayName ?? (firebaseUser.email ?? "Admin").split("@")[0],
-        });
-      } else {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
         logout();
         router.push("/login");
+        return;
       }
+
+      const token = await firebaseUser.getIdTokenResult();
+      if (!token.claims.admin) {
+        // Claim missing — try to set it (covers first login after deploy)
+        try {
+          await httpsCallable(getFunctions(), "setAdminClaim")({});
+          await firebaseUser.getIdToken(true);
+          const refreshed = await firebaseUser.getIdTokenResult();
+          if (!refreshed.claims.admin) throw new Error();
+        } catch {
+          await signOut(auth);
+          router.push("/login");
+          return;
+        }
+      }
+
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? "",
+        nama: firebaseUser.displayName ?? (firebaseUser.email ?? "Admin").split("@")[0],
+      });
     });
     return unsubscribe;
   }, [setUser, logout, router]);

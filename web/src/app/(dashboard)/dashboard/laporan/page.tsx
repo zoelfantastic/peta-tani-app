@@ -8,8 +8,9 @@ import { FilePdfOutlined, FileExcelOutlined, DownloadOutlined } from "@ant-desig
 import type { ColumnsType } from "antd/es/table";
 import type { Dayjs } from "dayjs";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeSnapshot } from "@/lib/firebase-utils";
 import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 import * as XLSX from "xlsx";
 
@@ -94,7 +95,7 @@ export default function LaporanPage() {
   const [hasPreview, setHasPreview] = useState(false);
 
   useEffect(() => {
-    const unsubA = onSnapshot(collection(db, "aktivitas"), (snap) => {
+    const unsubA = safeSnapshot(collection(db, "aktivitas"), (snap) => {
       setAktivitasDocs(snap.docs.map((d) => {
         const data = d.data();
         return {
@@ -121,7 +122,7 @@ export default function LaporanPage() {
       setLoading(false);
     });
 
-    const unsubU = onSnapshot(collection(db, "users"), (snap) => {
+    const unsubU = safeSnapshot(collection(db, "users"), (snap) => {
       setUserDocs(snap.docs.map((d) => ({
         id: d.id,
         name: d.data().name ?? d.data().nama ?? d.id,
@@ -130,7 +131,7 @@ export default function LaporanPage() {
       })));
     });
 
-    const unsubL = onSnapshot(collection(db, "lahan"), (snap) => {
+    const unsubL = safeSnapshot(collection(db, "lahan"), (snap) => {
       setLahanDocs(snap.docs.map((d) => ({
         id: d.id,
         userId: d.data().userId ?? "",

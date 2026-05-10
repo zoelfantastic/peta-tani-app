@@ -4,8 +4,9 @@ import { Card, Typography, Row, Col, Select, Space, Statistic, Spin } from "antd
 import { ToolOutlined, TeamOutlined, DollarOutlined } from "@ant-design/icons";
 import { Column, Pie } from "@ant-design/charts";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeSnapshot } from "@/lib/firebase-utils";
 import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
@@ -45,11 +46,11 @@ export default function AnalitikPage() {
   const [lahanDocs, setLahanDocs] = useState<LahanDoc[]>([]);
 
   useEffect(() => {
-    const unsubAktivitas = onSnapshot(collection(db, "aktivitas"), (snap) => {
+    const unsubAktivitas = safeSnapshot(collection(db, "aktivitas"), (snap) => {
       setAktivitasDocs(snap.docs.map((d) => d.data() as AktivitasDoc));
       setLoading(false);
     });
-    const unsubLahan = onSnapshot(collection(db, "lahan"), (snap) => {
+    const unsubLahan = safeSnapshot(collection(db, "lahan"), (snap) => {
       setLahanDocs(snap.docs.map((d) => d.data() as LahanDoc));
     });
     return () => { unsubAktivitas(); unsubLahan(); };

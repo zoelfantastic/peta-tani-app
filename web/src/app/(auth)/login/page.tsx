@@ -2,7 +2,8 @@
 
 import { Card, Form, Input, Button, Typography, message } from "antd";
 import { MailOutlined, LockOutlined } from "@ant-design/icons";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { auth } from "@/lib/firebase";
@@ -18,12 +19,20 @@ export default function LoginPage() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      const result = await signInWithEmailAndPassword(
-        auth,
-        values.email,
-        values.password
-      );
+      const result = await signInWithEmailAndPassword(auth, values.email, values.password);
       const firebaseUser = result.user;
+
+      // Set admin custom claim (verifies user is in /admins collection)
+      const setAdminClaimFn = httpsCallable(getFunctions(), "setAdminClaim");
+      try {
+        await setAdminClaimFn({});
+        await firebaseUser.getIdToken(true); // force refresh to get claim in token
+      } catch {
+        await signOut(auth);
+        message.error("Akun ini tidak memiliki akses admin.");
+        return;
+      }
+
       setUser({
         uid: firebaseUser.uid,
         email: firebaseUser.email ?? values.email,

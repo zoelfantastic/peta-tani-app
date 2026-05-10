@@ -1,8 +1,23 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import { getFirestore, Timestamp, Query } from "firebase-admin/firestore";
+import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { VALID_ALAT } from "./aktivitas";
 
 const db = () => getFirestore();
+
+export const setAdminClaim = onCall(async (request: CallableRequest) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login diperlukan");
+
+  const uid = request.auth.uid;
+  const adminDoc = await db().collection("admins").doc(uid).get();
+
+  if (!adminDoc.exists) {
+    throw new HttpsError("permission-denied", "Akun ini bukan admin");
+  }
+
+  await getAdminAuth().setCustomUserClaims(uid, { admin: true });
+  return { success: true };
+});
 
 async function verifyAdmin(uid: string): Promise<void> {
   const doc = await db().collection("admins").doc(uid).get();

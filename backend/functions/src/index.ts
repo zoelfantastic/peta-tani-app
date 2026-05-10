@@ -29,6 +29,7 @@ export { getBerandaData } from "./handlers/beranda";
 
 // Admin dashboard
 export {
+  setAdminClaim,
   getDashboardKpi,
   getDaftarPetani,
   getDetailPetani,

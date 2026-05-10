@@ -11,8 +11,9 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeSnapshot } from "@/lib/firebase-utils";
 import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
@@ -132,7 +133,7 @@ export default function PetaniPage() {
 
   useEffect(() => {
     const lahanCount: Record<string, number> = {};
-    const unsubLahan = onSnapshot(collection(db, "lahan"), (snap) => {
+    const unsubLahan = safeSnapshot(collection(db, "lahan"), (snap) => {
       Object.keys(lahanCount).forEach((k) => delete lahanCount[k]);
       snap.docs.forEach((d) => {
         const uid = d.data().userId;
@@ -142,7 +143,7 @@ export default function PetaniPage() {
 
     const aktivitasCount: Record<string, number> = {};
     const lastAktivitas: Record<string, string> = {};
-    const unsubAktivitas = onSnapshot(collection(db, "aktivitas"), (snap) => {
+    const unsubAktivitas = safeSnapshot(collection(db, "aktivitas"), (snap) => {
       Object.keys(aktivitasCount).forEach((k) => delete aktivitasCount[k]);
       Object.keys(lastAktivitas).forEach((k) => delete lastAktivitas[k]);
       snap.docs.forEach((d) => {
@@ -155,7 +156,7 @@ export default function PetaniPage() {
       });
     });
 
-    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+    const unsubUsers = safeSnapshot(collection(db, "users"), (snap) => {
       const rows: PetaniRow[] = snap.docs.map((d) => {
         const data = d.data();
         const uid = d.id;
@@ -186,7 +187,7 @@ export default function PetaniPage() {
     setDrawerLahan([]);
 
     const qAktivitas = query(collection(db, "aktivitas"), where("userId", "==", record.key));
-    const unsubA = onSnapshot(qAktivitas, (snap) => {
+    const unsubA = safeSnapshot(qAktivitas, (snap) => {
       const items = snap.docs
         .map((d) => ({
           key: d.id,
@@ -202,7 +203,7 @@ export default function PetaniPage() {
     });
 
     const qLahan = query(collection(db, "lahan"), where("userId", "==", record.key));
-    const unsubL = onSnapshot(qLahan, (snap) => {
+    const unsubL = safeSnapshot(qLahan, (snap) => {
       setDrawerLahan(snap.docs.map((d) => ({
         key: d.id,
         nama: d.data().nama ?? d.data().name ?? "—",

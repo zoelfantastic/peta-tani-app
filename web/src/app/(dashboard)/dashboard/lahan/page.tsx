@@ -8,8 +8,9 @@ import { AimOutlined, UserOutlined, EnvironmentOutlined } from "@ant-design/icon
 import type { ColumnsType } from "antd/es/table";
 import type { JenisLahan } from "@/types";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeSnapshot } from "@/lib/firebase-utils";
 import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
@@ -135,12 +136,12 @@ export default function LahanPage() {
 
   useEffect(() => {
     const uMap: Record<string, string> = {};
-    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+    const unsubUsers = safeSnapshot(collection(db, "users"), (snap) => {
       snap.docs.forEach((d) => { uMap[d.id] = d.data().name ?? d.data().nama ?? d.id; });
       setUserMap({ ...uMap });
     });
 
-    const unsubLahan = onSnapshot(collection(db, "lahan"), (snap) => {
+    const unsubLahan = safeSnapshot(collection(db, "lahan"), (snap) => {
       const raw: Record<string, DrawerLahan> = {};
       const rows: LahanRow[] = snap.docs.map((d) => {
         const data = d.data();
@@ -178,7 +179,7 @@ export default function LahanPage() {
     setDrawerAktivitas([]);
 
     const q = query(collection(db, "aktivitas"), where("lahanId", "==", record.key));
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = safeSnapshot(q, (snap) => {
       const items = snap.docs
         .map((d) => ({
           key: d.id,

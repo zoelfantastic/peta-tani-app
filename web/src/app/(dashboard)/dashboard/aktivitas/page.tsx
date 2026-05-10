@@ -11,8 +11,9 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { safeSnapshot } from "@/lib/firebase-utils";
 import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
@@ -170,7 +171,7 @@ export default function AktivitasPage() {
   const [selected, setSelected] = useState<AktivitasDetail | null>(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "users"), (snap) => {
+    const unsub = safeSnapshot(collection(db, "users"), (snap) => {
       const map: Record<string, string> = {};
       snap.docs.forEach((d) => { map[d.id] = d.data().name ?? d.data().nama ?? d.id; });
       setUserMap(map);
@@ -179,7 +180,7 @@ export default function AktivitasPage() {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "lahan"), (snap) => {
+    const unsub = safeSnapshot(collection(db, "lahan"), (snap) => {
       const map: Record<string, string> = {};
       snap.docs.forEach((d) => { map[d.id] = d.data().jenis_tanaman ?? d.data().tanaman ?? ""; });
       setLahanMap(map);
@@ -189,7 +190,7 @@ export default function AktivitasPage() {
 
   useEffect(() => {
     const q = query(collection(db, "aktivitas"), orderBy("tanggalMulai", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = safeSnapshot(q, (snap) => {
       const rows: AktivitasRow[] = [];
       const details: Record<string, AktivitasDetail> = {};
 
