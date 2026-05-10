@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "petatani"
+    "default": "petatani",
+    "dev": "petatani-dev"
   }
 }
