@@ -15,8 +15,15 @@ const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
-const WEB_API_KEY = "AIzaSyAQ6ZcbbF82T2Ch-3zwP6EAt7JK2KR9aKg";
-const PROJECT_ID = "petatani";
+const WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY;
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+
+if (!WEB_API_KEY || !PROJECT_ID) {
+  console.error("Error: FIREBASE_WEB_API_KEY dan FIREBASE_PROJECT_ID harus di-set.");
+  console.error("  Prod : FIREBASE_PROJECT_ID=petatani FIREBASE_WEB_API_KEY=<key> node create-admin.js ...");
+  console.error("  Dev  : FIREBASE_PROJECT_ID=petatani-dev FIREBASE_WEB_API_KEY=<key> node create-admin.js ...");
+  process.exit(1);
+}
 
 // ─── Args ─────────────────────────────────────────────────
 const [, , email, password, displayName = "Admin"] = process.argv;
