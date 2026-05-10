@@ -129,19 +129,19 @@ class ProfilScreen extends ConsumerWidget {
                     ),
 
                     // ─── Info Rows ────────────────────────
-                    if (user?.namaKelompokTani != null ||
+                    if ((user?.namaKelompokTani?.isNotEmpty ?? false) ||
                         user?.kabupaten != null) ...[
                       const SizedBox(height: 16),
                       const Divider(color: AppColors.border, height: 1),
                       const SizedBox(height: 16),
-                      if (user?.namaKelompokTani != null)
+                      if (user?.namaKelompokTani?.isNotEmpty ?? false)
                         _InfoRow(
                           icon: Icons.groups_outlined,
                           label: 'Kelompok Tani',
                           value: user!.namaKelompokTani!,
                         ),
                       if (user?.kabupaten != null) ...[
-                        if (user?.namaKelompokTani != null)
+                        if (user?.namaKelompokTani?.isNotEmpty ?? false)
                           const SizedBox(height: 10),
                         _InfoRow(
                           icon: Icons.location_on_outlined,

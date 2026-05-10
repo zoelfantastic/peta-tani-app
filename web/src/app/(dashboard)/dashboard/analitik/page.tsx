@@ -1,208 +1,285 @@
 "use client";
 
-import { Card, Typography, Row, Col, Select, Space, Statistic } from "antd";
-import {
-  ArrowUpOutlined,
-  ExperimentOutlined,
-  FieldTimeOutlined,
-} from "@ant-design/icons";
+import { Card, Typography, Row, Col, Select, Space, Statistic, Spin } from "antd";
+import { ToolOutlined, TeamOutlined, DollarOutlined } from "@ant-design/icons";
 import { Column, Pie } from "@ant-design/charts";
+import { useEffect, useState } from "react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
 
-// Mock chart data
-const monthlyTrendData = [
-  { bulan: "Jan", value: 320 },
-  { bulan: "Feb", value: 450 },
-  { bulan: "Mar", value: 380 },
-  { bulan: "Apr", value: 520 },
-  { bulan: "Mei", value: 610 },
-];
+const rupiahFmt = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+  notation: "compact",
+});
 
-const aktivitasBreakdownData = [
-  { type: "Pemupukan", value: 245 },
-  { type: "Penyiraman", value: 198 },
-  { type: "Olah Tanah", value: 156 },
-  { type: "Penyemaian", value: 134 },
-  { type: "Panen", value: 89 },
-  { type: "Pengendalian Hama", value: 67 },
-];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
-interface TrendData {
-  bulan: string;
-  value: number;
+interface AktivitasDoc {
+  userId: string;
+  lahanId: string;
+  type?: string;
+  jenis?: string;
+  tanggalMulai?: string;
+  alatYangDigunakan?: string | null;
+  jumlahTenagaKerja?: number | null;
+  biayaHok?: number | null;
+  biayaBahanBakar?: number | null;
+  biayaSaprodi?: number | null;
+}
+
+interface LahanDoc {
+  userId: string;
+  jenisLahan?: string;
+  jenis?: string;
 }
 
 export default function AnalitikPage() {
-  const columnConfig = {
-    data: monthlyTrendData,
-    xField: "bulan",
-    yField: "value",
-    label: {
-      text: (d: TrendData) => d.value,
-      textBaseline: "bottom",
-    },
-    style: {
-      fill: "linear-gradient(180deg, #22D3EE, #2D6A4F)",
-      radiusTopLeft: 6,
-      radiusTopRight: 6,
-    },
-    axis: {
-      x: { title: "Bulan" },
-      y: { title: "Total Aktivitas" },
-    },
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [loading, setLoading] = useState(true);
+  const [aktivitasDocs, setAktivitasDocs] = useState<AktivitasDoc[]>([]);
+  const [lahanDocs, setLahanDocs] = useState<LahanDoc[]>([]);
+
+  useEffect(() => {
+    const unsubAktivitas = onSnapshot(collection(db, "aktivitas"), (snap) => {
+      setAktivitasDocs(snap.docs.map((d) => d.data() as AktivitasDoc));
+      setLoading(false);
+    });
+    const unsubLahan = onSnapshot(collection(db, "lahan"), (snap) => {
+      setLahanDocs(snap.docs.map((d) => d.data() as LahanDoc));
+    });
+    return () => { unsubAktivitas(); unsubLahan(); };
+  }, []);
+
+  // Filter by year
+  const yearDocs = aktivitasDocs.filter((d) => {
+    const tgl = d.tanggalMulai ?? "";
+    return tgl.startsWith(selectedYear);
+  });
+
+  // This month
+  const now = new Date();
+  const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const bulanIniDocs = aktivitasDocs.filter((d) => (d.tanggalMulai ?? "").startsWith(thisMonthPrefix));
+
+  // KPI
+  const pakaiAlat = bulanIniDocs.filter((d) => d.alatYangDigunakan).length;
+  const totalHok = bulanIniDocs.reduce((s, d) => s + (d.jumlahTenagaKerja ?? 0), 0);
+  const totalBiayaBulanIni =
+    bulanIniDocs.reduce((s, d) => s + (d.biayaBahanBakar ?? 0) + (d.biayaSaprodi ?? 0) + (d.biayaHok ?? 0), 0);
+
+  // Cost breakdown (this month)
+  const biayaBahanBakar = bulanIniDocs.reduce((s, d) => s + (d.biayaBahanBakar ?? 0), 0);
+  const biayaSaprodi = bulanIniDocs.reduce((s, d) => s + (d.biayaSaprodi ?? 0), 0);
+  const biayaHok = bulanIniDocs.reduce((s, d) => s + (d.biayaHok ?? 0), 0);
+
+  // Tren Aktivitas Bulanan (per month for selected year)
+  const monthCount: Record<number, number> = {};
+  yearDocs.forEach((d) => {
+    const tgl = d.tanggalMulai ?? "";
+    const month = parseInt(tgl.slice(5, 7), 10) - 1;
+    if (!isNaN(month)) monthCount[month] = (monthCount[month] ?? 0) + 1;
+  });
+  const trenData = MONTH_NAMES.map((bulan, i) => ({ bulan, jumlah: monthCount[i] ?? 0 }));
+
+  // Distribusi Jenis Aktivitas
+  const jenisCount: Record<string, number> = {};
+  yearDocs.forEach((d) => {
+    const jenis = (d.type ?? d.jenis ?? "olahTanah") as JenisAktivitas;
+    const label = JENIS_AKTIVITAS_LABEL[jenis] ?? jenis;
+    jenisCount[label] = (jenisCount[label] ?? 0) + 1;
+  });
+  const jenisData = Object.entries(jenisCount).map(([type, value]) => ({ type, value }));
+
+  // Distribusi Alat
+  const alatCount: Record<string, number> = {};
+  yearDocs.filter((d) => d.alatYangDigunakan).forEach((d) => {
+    const alat = d.alatYangDigunakan!;
+    alatCount[alat] = (alatCount[alat] ?? 0) + 1;
+  });
+  const alatData = Object.entries(alatCount).map(([alat, jumlah]) => ({ alat, jumlah }));
+
+  // Distribusi Jenis Lahan
+  const lahanJenisCount: Record<string, number> = {};
+  lahanDocs.forEach((d) => {
+    const jenis = d.jenisLahan ?? d.jenis ?? "Sawah";
+    lahanJenisCount[jenis] = (lahanJenisCount[jenis] ?? 0) + 1;
+  });
+  const lahanJenisData = Object.entries(lahanJenisCount).map(([type, value]) => ({ type, value }));
+
+  const chartTheme = {
+    background: "transparent",
+    defaultColor: "#22D3EE",
   };
 
-  const pieConfig = {
-    data: aktivitasBreakdownData,
-    angleField: "value",
-    colorField: "type",
-    radius: 0.8,
-    label: {
-      text: "type",
-      position: "outside",
-    },
-    legend: {
-      color: {
-        title: false,
-        position: "right",
-        rowPadding: 5,
-      },
-    },
-  };
+  const years = Array.from(
+    new Set(aktivitasDocs.map((d) => (d.tanggalMulai ?? "").slice(0, 4)).filter(Boolean))
+  ).sort((a, b) => b.localeCompare(a));
+  if (!years.includes(now.getFullYear().toString())) years.unshift(now.getFullYear().toString());
 
   return (
     <div>
-      <div
-        style={{
-          marginBottom: 24,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: 16,
-        }}
-      >
+      <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
         <div>
-          <Title level={4} style={{ margin: 0, color: "#F8FAFC" }}>
-            Analitik
-          </Title>
-          <Text style={{ color: "#94A3B8" }}>
-            Analisa pola dan tren aktivitas pertanian
-          </Text>
+          <Title level={4} style={{ margin: 0, color: "#F8FAFC" }}>Analitik</Title>
+          <Text style={{ color: "#94A3B8" }}>Analisa pola dan tren aktivitas pertanian</Text>
         </div>
         <Space>
           <Select
-            defaultValue="2026"
+            value={selectedYear}
             style={{ width: 100 }}
-            options={[
-              { value: "2026", label: "2026" },
-              { value: "2025", label: "2025" },
-            ]}
-          />
-          <Select
-            defaultValue="semua"
-            style={{ width: 160 }}
-            options={[
-              { value: "semua", label: "Semua Wilayah" },
-              { value: "subang", label: "Subang" },
-              { value: "karawang", label: "Karawang" },
-            ]}
+            onChange={setSelectedYear}
+            options={years.map((y) => ({ value: y, label: y }))}
           />
         </Space>
       </div>
 
-      {/* KPI Highlights */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
-          <Card variant="borderless" className="kpi-card">
-            <Space>
-              <ExperimentOutlined style={{ fontSize: 24, color: "#22D3EE" }} />
-              <div>
-                <Text style={{ color: "#94A3B8", fontSize: 12 }}>
-                  Pemupukan Minggu Ini
-                </Text>
-                <Statistic
-                  value={42}
-                  suffix="kali"
-                  styles={{ content: { color: "#F8FAFC", fontSize: 24 } }}
-                />
-              </div>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card variant="borderless" className="kpi-card">
-            <Space>
-              <FieldTimeOutlined style={{ fontSize: 24, color: "#E9C46A" }} />
-              <div>
-                <Text style={{ color: "#94A3B8", fontSize: 12 }}>
-                  Lahan Fase Panen
-                </Text>
-                <Statistic
-                  value={32}
-                  suffix="lahan"
-                  styles={{ content: { color: "#F8FAFC", fontSize: 24 } }}
-                />
-              </div>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card variant="borderless" className="kpi-card">
-            <Space>
-              <ArrowUpOutlined style={{ fontSize: 24, color: "#2D6A4F" }} />
-              <div>
-                <Text style={{ color: "#94A3B8", fontSize: 12 }}>
-                  Pertumbuhan Aktivitas
-                </Text>
-                <Statistic
-                  value={23}
-                  suffix="%"
-                  prefix={<ArrowUpOutlined />}
-                  styles={{ content: { color: "#2D6A4F", fontSize: 24 } }}
-                />
-              </div>
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+      <Spin spinning={loading}>
+        {/* KPI */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8}>
+            <Card variant="borderless">
+              <Space>
+                <ToolOutlined style={{ fontSize: 24, color: "#22D3EE" }} />
+                <div>
+                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>Aktivitas Pakai Alat</Text>
+                  <Statistic value={pakaiAlat} suffix="kali"
+                    styles={{ content: { color: "#F8FAFC", fontSize: 24 } }} />
+                </div>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card variant="borderless">
+              <Space>
+                <TeamOutlined style={{ fontSize: 24, color: "#E9C46A" }} />
+                <div>
+                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>Total HOK Bulan Ini</Text>
+                  <Statistic value={totalHok} suffix="orang"
+                    styles={{ content: { color: "#F8FAFC", fontSize: 24 } }} />
+                </div>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Card variant="borderless">
+              <Space>
+                <DollarOutlined style={{ fontSize: 24, color: "#2D6A4F" }} />
+                <div>
+                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>Total Biaya Bulan Ini</Text>
+                  <Statistic value={rupiahFmt.format(totalBiayaBulanIni)}
+                    styles={{ content: { color: "#F8FAFC", fontSize: 24 } }} />
+                </div>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
 
-      {/* Charts */}
-      <Row gutter={[16, 16]}>
-        {/* Monthly Trend */}
-        <Col xs={24} lg={12}>
-          <Card
-            variant="borderless"
-            title={
-              <Text strong style={{ color: "#F8FAFC" }}>
-                Tren Aktivitas Bulanan
-              </Text>
-            }
-          >
-            <div style={{ height: 300 }}>
-              <Column {...columnConfig} />
-            </div>
-          </Card>
-        </Col>
+        {/* Total Biaya */}
+        <Card variant="borderless" style={{ marginBottom: 24 }}
+          title={<Text strong style={{ color: "#F8FAFC" }}><DollarOutlined /> Total Biaya Produksi (Bulan Ini)</Text>}>
+          <Row gutter={[16, 16]}>
+            <Col xs={12} sm={6}>
+              <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Bahan Bakar</Text>}
+                value={rupiahFmt.format(biayaBahanBakar)}
+                styles={{ content: { color: "#E76F51", fontSize: 18 } }} />
+            </Col>
+            <Col xs={12} sm={6}>
+              <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Saprodi</Text>}
+                value={rupiahFmt.format(biayaSaprodi)}
+                styles={{ content: { color: "#22D3EE", fontSize: 18 } }} />
+            </Col>
+            <Col xs={12} sm={6}>
+              <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>HOK</Text>}
+                value={rupiahFmt.format(biayaHok)}
+                styles={{ content: { color: "#E9C46A", fontSize: 18 } }} />
+            </Col>
+            <Col xs={12} sm={6}>
+              <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Total Keseluruhan</Text>}
+                value={rupiahFmt.format(totalBiayaBulanIni)}
+                styles={{ content: { color: "#2D6A4F", fontSize: 18, fontWeight: 700 } }} />
+            </Col>
+          </Row>
+        </Card>
 
-        {/* Activity Breakdown */}
-        <Col xs={24} lg={12}>
-          <Card
-            variant="borderless"
-            title={
-              <Text strong style={{ color: "#F8FAFC" }}>
-                Distribusi Jenis Aktivitas
-              </Text>
-            }
-          >
-            <div style={{ height: 300 }}>
-              <Pie {...pieConfig} />
-            </div>
-          </Card>
-        </Col>
-      </Row>
+        {/* Charts */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} lg={12}>
+            <Card variant="borderless" title={<Text strong style={{ color: "#F8FAFC" }}>Tren Aktivitas Bulanan ({selectedYear})</Text>}>
+              <Column
+                data={trenData}
+                xField="bulan"
+                yField="jumlah"
+                theme={chartTheme}
+                style={{ fill: "#22D3EE" }}
+                axis={{ x: { labelFill: "#94A3B8" }, y: { labelFill: "#94A3B8", gridStroke: "#1E293B" } }}
+                height={280}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card variant="borderless" title={<Text strong style={{ color: "#F8FAFC" }}>Distribusi Jenis Aktivitas</Text>}>
+              {jenisData.length > 0 ? (
+                <Pie
+                  data={jenisData}
+                  angleField="value"
+                  colorField="type"
+                  theme={chartTheme}
+                  legend={{ color: { itemLabelFill: "#94A3B8" } }}
+                  height={280}
+                />
+              ) : (
+                <div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: "#475569" }}>Belum ada data</Text>
+                </div>
+              )}
+            </Card>
+          </Col>
+        </Row>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <Card variant="borderless" title={<Text strong style={{ color: "#F8FAFC" }}>Distribusi Alat yang Digunakan</Text>}>
+              {alatData.length > 0 ? (
+                <Column
+                  data={alatData}
+                  xField="alat"
+                  yField="jumlah"
+                  theme={chartTheme}
+                  style={{ fill: "#E9C46A" }}
+                  axis={{ x: { labelFill: "#94A3B8" }, y: { labelFill: "#94A3B8", gridStroke: "#1E293B" } }}
+                  height={280}
+                />
+              ) : (
+                <div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: "#475569" }}>Belum ada data alat</Text>
+                </div>
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card variant="borderless" title={<Text strong style={{ color: "#F8FAFC" }}>Distribusi Jenis Lahan</Text>}>
+              {lahanJenisData.length > 0 ? (
+                <Pie
+                  data={lahanJenisData}
+                  angleField="value"
+                  colorField="type"
+                  theme={chartTheme}
+                  legend={{ color: { itemLabelFill: "#94A3B8" } }}
+                  height={280}
+                />
+              ) : (
+                <div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Text style={{ color: "#475569" }}>Belum ada data lahan</Text>
+                </div>
+              )}
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
     </div>
   );
 }
-

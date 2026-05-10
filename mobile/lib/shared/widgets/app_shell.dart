@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/lahan_provider.dart';
+import '../../providers/aktivitas_provider.dart';
 
-/// Main app shell with custom bottom navigation bar and FAB.
-/// The FAB ("+ Catat") is the primary action — always accessible in 1 tap.
-class AppShell extends StatelessWidget {
+/// Main app shell with bottom navigation bar and FAB.
+/// Listens to auth state to reload or clear data providers automatically.
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.child});
 
   final Widget child;
 
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
   static const _tabs = [
     _TabItem(path: '/beranda', label: 'Beranda', icon: Icons.home_rounded),
     _TabItem(path: '/lahan', label: 'Lahan', icon: Icons.map_rounded),
-    _TabItem(
-      path: '/catat',
-      label: 'Catat',
-      icon: Icons.add_circle_rounded,
-    ), // placeholder for FAB gap
+    _TabItem(path: '/catat', label: 'Catat', icon: Icons.add_circle_rounded),
     _TabItem(
       path: '/riwayat',
       label: 'Riwayat',
@@ -24,6 +29,23 @@ class AppShell extends StatelessWidget {
     ),
     _TabItem(path: '/profil', label: 'Profil', icon: Icons.person_rounded),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load data for the currently authenticated user on first mount.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+  }
+
+  void _loadData() {
+    ref.read(lahanProvider.notifier).loadAll();
+    ref.read(aktivitasProvider.notifier).loadAll();
+  }
+
+  void _clearData() {
+    ref.read(lahanProvider.notifier).clearState();
+    ref.read(aktivitasProvider.notifier).clearState();
+  }
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
@@ -35,10 +57,21 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Reload data when the user logs in; clear when they log out.
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      if (prev?.status != AuthStatus.authenticated &&
+          next.status == AuthStatus.authenticated) {
+        _loadData();
+      } else if (prev?.status == AuthStatus.authenticated &&
+          next.status == AuthStatus.unauthenticated) {
+        _clearData();
+      }
+    });
+
     final currentIndex = _currentIndex(context);
 
     return Scaffold(
-      body: child,
+      body: widget.child,
       extendBody: true,
       floatingActionButton: _buildFAB(context, currentIndex == 2),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -96,10 +129,7 @@ class AppShell extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(_tabs.length, (index) {
-              if (index == 2) {
-                // Center gap for FAB
-                return const SizedBox(width: 56);
-              }
+              if (index == 2) return const SizedBox(width: 56);
 
               final tab = _tabs[index];
               final isSelected = currentIndex == index;

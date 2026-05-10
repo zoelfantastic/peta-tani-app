@@ -1,5 +1,6 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import { getFirestore, Timestamp, Query } from "firebase-admin/firestore";
+import { VALID_ALAT } from "./aktivitas";
 
 const db = () => getFirestore();
 
@@ -196,19 +197,38 @@ export const getAnalitik = onCall(async (request: CallableRequest) => {
 
   const trend: Record<string, number> = {};
   const jenisCount: Record<string, number> = {};
+  const alatCount: Record<string, number> = {};
+  let totalBiayaBbm = 0;
+  let totalBiayaSaprodi = 0;
+  let totalBiayaHok = 0;
 
   for (const doc of aktivitasSnap.docs) {
     const d = doc.data();
+
     const tanggal = ((d.tanggal as string) ?? "").slice(0, 10);
     trend[tanggal] = (trend[tanggal] ?? 0) + 1;
+
     const jenis = (d.jenis as string) ?? "lainnya";
     jenisCount[jenis] = (jenisCount[jenis] ?? 0) + 1;
+
+    const alat = (d.alat_yang_digunakan as string | null) ?? null;
+    if (alat && VALID_ALAT.has(alat)) {
+      alatCount[alat] = (alatCount[alat] ?? 0) + 1;
+    }
+
+    totalBiayaBbm += Number(d.biaya_bahan_bakar ?? 0);
+    totalBiayaSaprodi += Number(d.biaya_saprodi ?? 0);
+    totalBiayaHok += Number(d.biaya_hok ?? 0);
   }
 
   const tanamanCount: Record<string, number> = {};
+  const jenisLahanCount: Record<string, number> = {};
   for (const doc of lahanSnap.docs) {
-    const tanaman = (doc.data().jenis_tanaman as string) ?? "Lainnya";
+    const d = doc.data();
+    const tanaman = (d.jenis_tanaman as string) ?? "Lainnya";
     tanamanCount[tanaman] = (tanamanCount[tanaman] ?? 0) + 1;
+    const jenisLahan = (d.jenis_lahan as string) ?? "Lainnya";
+    jenisLahanCount[jenisLahan] = (jenisLahanCount[jenisLahan] ?? 0) + 1;
   }
 
   return {
@@ -216,10 +236,21 @@ export const getAnalitik = onCall(async (request: CallableRequest) => {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([tanggal, count]) => ({ tanggal, count })),
     distribusi_jenis: Object.entries(jenisCount).map(([jenis, count]) => ({ jenis, count })),
+    distribusi_alat: Object.entries(alatCount).map(([alat, count]) => ({ alat, count })),
     distribusi_tanaman: Object.entries(tanamanCount).map(([tanaman, count]) => ({
       tanaman,
       count,
     })),
+    distribusi_jenis_lahan: Object.entries(jenisLahanCount).map(([jenis_lahan, count]) => ({
+      jenis_lahan,
+      count,
+    })),
+    total_biaya: {
+      bahan_bakar: totalBiayaBbm,
+      saprodi: totalBiayaSaprodi,
+      hok: totalBiayaHok,
+      keseluruhan: totalBiayaBbm + totalBiayaSaprodi + totalBiayaHok,
+    },
   };
 });
 
@@ -263,10 +294,24 @@ export const generateLaporan = onCall(async (request: CallableRequest) => {
         id: doc.id,
         jenis: d.jenis,
         tanggal: d.tanggal,
+        tanggal_selesai: d.tanggal_selesai ?? null,
         lahan_nama: d.lahan_nama,
-        catatan: d.catatan,
-        jumlah: d.jumlah,
-        satuan: d.satuan,
+        catatan: d.catatan ?? null,
+        jumlah: d.jumlah ?? null,
+        satuan: d.satuan ?? null,
+        // Alat
+        alat_yang_digunakan: d.alat_yang_digunakan ?? null,
+        kebutuhan_bahan_bakar: d.kebutuhan_bahan_bakar ?? null,
+        biaya_bahan_bakar: d.biaya_bahan_bakar ?? null,
+        jumlah_alat_unit: d.jumlah_alat_unit ?? null,
+        // Saprodi
+        jenis_saprodi: d.jenis_saprodi ?? null,
+        jumlah_saprodi: d.jumlah_saprodi ?? null,
+        satuan_saprodi: d.satuan_saprodi ?? null,
+        biaya_saprodi: d.biaya_saprodi ?? null,
+        // HOK
+        jumlah_tenaga_kerja: d.jumlah_tenaga_kerja ?? null,
+        biaya_hok: d.biaya_hok ?? null,
       });
     })
   );

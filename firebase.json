@@ -1,15 +1,15 @@
 {
   "hosting": {
-    "public": "../web/out",
+    "public": "web/out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "cleanUrls": true
   },
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "backend/firestore.rules"
   },
   "functions": [
     {
-      "source": "functions",
+      "source": "backend/functions",
       "codebase": "default",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [

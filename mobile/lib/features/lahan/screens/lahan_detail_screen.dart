@@ -9,22 +9,21 @@ import '../../../providers/lahan_provider.dart';
 import '../../../providers/aktivitas_provider.dart';
 
 /// Lahan detail screen — shows lahan info and its activity history.
-/// Supports edit and delete actions.
 class LahanDetailScreen extends ConsumerWidget {
   const LahanDetailScreen({super.key, required this.lahanId});
 
   final String lahanId;
 
-  Color _faseColor(String fase) {
-    switch (fase) {
-      case 'Vegetatif':
+  Color _jenisLahanColor(String jenisLahan) {
+    switch (jenisLahan) {
+      case 'Sawah':
+        return AppColors.info;
+      case 'Kebun':
         return AppColors.primary;
-      case 'Generatif':
-        return AppColors.accent;
-      case 'Pematangan':
+      case 'Pekarangan':
         return AppColors.warning;
-      case 'Panen':
-        return AppColors.panen;
+      case 'Hutan':
+        return const Color(0xFF2D5A1E);
       default:
         return AppColors.textSecondary;
     }
@@ -35,9 +34,7 @@ class LahanDetailScreen extends ConsumerWidget {
     final lahanState = ref.watch(lahanProvider);
     final aktState = ref.watch(aktivitasProvider);
 
-    final lahan = lahanState.lahanList
-        .where((l) => l.id == lahanId)
-        .firstOrNull;
+    final lahan = lahanState.lahanList.where((l) => l.id == lahanId).firstOrNull;
     if (lahan == null) {
       return Scaffold(
         backgroundColor: AppColors.background,
@@ -52,7 +49,7 @@ class LahanDetailScreen extends ConsumerWidget {
     final activities = aktState.aktivitasList
         .where((a) => a.lahanId == lahanId)
         .toList();
-    final faseColor = _faseColor(lahan.fase);
+    final jenisColor = _jenisLahanColor(lahan.jenisLahan);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -89,6 +86,7 @@ class LahanDetailScreen extends ConsumerWidget {
                 border: Border.all(color: AppColors.border),
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
@@ -119,50 +117,63 @@ class LahanDetailScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
-                  // Progress
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                  // Jenis lahan badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: jenisColor.withAlpha(20),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          jenisLahanOptions[lahan.jenisLahan] ?? '🌱',
+                          style: const TextStyle(fontSize: 14),
                         ),
-                        decoration: BoxDecoration(
-                          color: faseColor.withAlpha(20),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          lahan.fase,
+                        const SizedBox(width: 6),
+                        Text(
+                          lahan.jenisLahan,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: faseColor,
+                            color: jenisColor,
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${(lahan.progress * 100).toInt()}%',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: faseColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: lahan.progress,
-                      minHeight: 8,
-                      backgroundColor: AppColors.divider,
-                      valueColor: AlwaysStoppedAnimation<Color>(faseColor),
+                      ],
                     ),
                   ),
+
+                  if (lahan.hasLocation) ...[
+                    const SizedBox(height: 12),
+                    const Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_rounded,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            lahan.locationDisplay,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -171,19 +182,6 @@ class LahanDetailScreen extends ConsumerWidget {
             // ─── Info Cards ─────────────────────
             Row(
               children: [
-                Expanded(
-                  child: _InfoCard(
-                    icon: Icons.calendar_today_rounded,
-                    label: 'Tanam',
-                    value: lahan.tanggalTanam != null
-                        ? DateFormat(
-                            'd MMM yyyy',
-                            'id',
-                          ).format(lahan.tanggalTanam!)
-                        : '-',
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: _InfoCard(
                     icon: Icons.edit_note_rounded,
@@ -197,6 +195,14 @@ class LahanDetailScreen extends ConsumerWidget {
                     icon: Icons.timelapse_rounded,
                     label: 'Berjalan',
                     value: '${activities.where((a) => a.isBerjalan).length}',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _InfoCard(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Selesai',
+                    value: '${activities.where((a) => !a.isBerjalan).length}',
                   ),
                 ),
               ],

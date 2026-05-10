@@ -12,25 +12,41 @@ enum ActivityType {
     emoji: '🪓',
     color: AppColors.olahTanah,
   ),
-  semai(label: 'Semai', icon: Icons.eco, emoji: '🌱', color: AppColors.semai),
-  pupuk(
-    label: 'Pupuk',
+  persemaian(
+    label: 'Persemaian',
+    icon: Icons.eco,
+    emoji: '🌱',
+    color: AppColors.persemaian,
+  ),
+  penanaman(
+    label: 'Penanaman',
+    icon: Icons.local_florist,
+    emoji: '🌿',
+    color: AppColors.penanaman,
+  ),
+  pemupukan(
+    label: 'Pemupukan',
     icon: Icons.science,
     emoji: '💧',
-    color: AppColors.pupuk,
+    color: AppColors.pemupukan,
   ),
-  penyiraman(
-    label: 'Penyiraman',
-    icon: Icons.water_drop,
-    emoji: '🚿',
-    color: AppColors.penyiraman,
-  ),
-  panen(label: 'Panen', icon: Icons.grass, emoji: '🌾', color: AppColors.panen),
-  pengendalianHama(
-    label: 'Hama',
+  pengendalianOpt(
+    label: 'Pengendalian OPT',
     icon: Icons.shield,
     emoji: '🛡️',
-    color: AppColors.hama,
+    color: AppColors.pengendalianOpt,
+  ),
+  penyiangan(
+    label: 'Penyiangan',
+    icon: Icons.content_cut,
+    emoji: '✂️',
+    color: AppColors.penyiangan,
+  ),
+  panen(
+    label: 'Panen',
+    icon: Icons.grass,
+    emoji: '🌾',
+    color: AppColors.panen,
   );
 
   const ActivityType({

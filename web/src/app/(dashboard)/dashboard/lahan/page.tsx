@@ -1,19 +1,16 @@
 "use client";
 
 import {
-  Card,
-  Table,
-  Tag,
-  Typography,
-  Space,
-  Select,
-  Row,
-  Col,
-  Statistic,
-  Progress,
+  Card, Table, Tag, Typography, Space, Select, Row, Col,
+  Statistic, Tooltip, Empty, Spin, Drawer, Descriptions,
 } from "antd";
-import { EnvironmentOutlined } from "@ant-design/icons";
+import { AimOutlined, UserOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import type { JenisLahan } from "@/types";
+import { useEffect, useState } from "react";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { JENIS_AKTIVITAS_LABEL, type JenisAktivitas } from "@/types";
 
 const { Title, Text } = Typography;
 
@@ -21,28 +18,26 @@ interface LahanRow {
   key: string;
   nama: string;
   pemilik: string;
-  luas: string;
   tanaman: string;
-  fase: string;
-  tanggalTanam: string;
-  progress: number;
+  jenisLahan: JenisLahan;
+  luas: number;
+  satuanLuas: string;
+  emoji: string;
+  hasGps: boolean;
 }
 
-const lahanData: LahanRow[] = [
-  { key: "1", nama: "Sawah Belakang", pemilik: "Pak Ahmad", luas: "2 Ha", tanaman: "Padi", fase: "Vegetatif", tanggalTanam: "15 Mar 2026", progress: 45 },
-  { key: "2", nama: "Kebun Atas", pemilik: "Bu Siti", luas: "0.5 Ha", tanaman: "Jagung", fase: "Generatif", tanggalTanam: "1 Feb 2026", progress: 72 },
-  { key: "3", nama: "Ladang Timur", pemilik: "Pak Budi", luas: "3 Ha", tanaman: "Kedelai", fase: "Pematangan", tanggalTanam: "10 Jan 2026", progress: 88 },
-  { key: "4", nama: "Sawah Depan", pemilik: "Pak Dedi", luas: "1.5 Ha", tanaman: "Padi", fase: "Penyemaian", tanggalTanam: "28 Apr 2026", progress: 12 },
-  { key: "5", nama: "Kebun Bawah", pemilik: "Bu Rina", luas: "0.8 Ha", tanaman: "Cabai", fase: "Generatif", tanggalTanam: "20 Feb 2026", progress: 65 },
-  { key: "6", nama: "Sawah Barat", pemilik: "Pak Hasan", luas: "2.5 Ha", tanaman: "Padi", fase: "Panen", tanggalTanam: "5 Des 2025", progress: 100 },
-];
+const jenisLahanColor: Record<JenisLahan, string> = {
+  Sawah: "blue",
+  Kebun: "green",
+  Pekarangan: "cyan",
+  Hutan: "lime",
+};
 
-const faseColor: Record<string, string> = {
-  Penyemaian: "blue",
-  Vegetatif: "green",
-  Generatif: "orange",
-  Pematangan: "gold",
-  Panen: "red",
+const jenisLahanEmoji: Record<string, string> = {
+  Sawah: "🌾",
+  Kebun: "🌿",
+  Pekarangan: "🏡",
+  Hutan: "🌳",
 };
 
 const columns: ColumnsType<LahanRow> = [
@@ -50,45 +45,163 @@ const columns: ColumnsType<LahanRow> = [
     title: "Nama Lahan",
     dataIndex: "nama",
     key: "nama",
-    render: (text: string) => (
+    render: (text: string, record: LahanRow) => (
       <Space>
-        <EnvironmentOutlined style={{ color: "#2D6A4F" }} />
+        <Text style={{ fontSize: 18 }}>{record.emoji}</Text>
         <Text strong style={{ color: "#F8FAFC" }}>{text}</Text>
       </Space>
     ),
   },
   { title: "Pemilik", dataIndex: "pemilik", key: "pemilik" },
-  { title: "Luas", dataIndex: "luas", key: "luas", align: "center" as const },
   {
     title: "Tanaman",
     dataIndex: "tanaman",
     key: "tanaman",
-    render: (text: string) => <Tag variant="filled">{text}</Tag>,
+    render: (text: string) => text ? <Tag variant="filled">{text}</Tag> : <Text style={{ color: "#475569" }}>—</Text>,
   },
   {
-    title: "Fase",
-    dataIndex: "fase",
-    key: "fase",
-    render: (text: string) => <Tag color={faseColor[text] || "default"}>{text}</Tag>,
-  },
-  {
-    title: "Progres",
-    dataIndex: "progress",
-    key: "progress",
-    width: 160,
-    render: (val: number) => (
-      <Progress
-        percent={val}
-        size="small"
-        strokeColor={val === 100 ? "#E9C46A" : "#2D6A4F"}
-        railColor="#0F172A"
-      />
+    title: "Jenis Lahan",
+    dataIndex: "jenisLahan",
+    key: "jenisLahan",
+    filters: [
+      { text: "Sawah", value: "Sawah" },
+      { text: "Kebun", value: "Kebun" },
+      { text: "Pekarangan", value: "Pekarangan" },
+      { text: "Hutan", value: "Hutan" },
+    ],
+    onFilter: (value, record) => record.jenisLahan === value,
+    render: (jenis: JenisLahan) => (
+      <Tag color={jenisLahanColor[jenis] ?? "default"}>{jenis}</Tag>
     ),
   },
-  { title: "Tanggal Tanam", dataIndex: "tanggalTanam", key: "tanggalTanam" },
+  {
+    title: "Luas",
+    key: "luas",
+    render: (_: unknown, record: LahanRow) => (
+      <Text style={{ color: "#F8FAFC" }}>{record.luas} {record.satuanLuas}</Text>
+    ),
+  },
+  {
+    title: "GPS",
+    dataIndex: "hasGps",
+    key: "hasGps",
+    align: "center" as const,
+    render: (has: boolean) =>
+      has ? (
+        <Tooltip title="Koordinat tersedia">
+          <AimOutlined style={{ color: "#22D3EE", fontSize: 16 }} />
+        </Tooltip>
+      ) : (
+        <Text style={{ color: "#475569", fontSize: 12 }}>—</Text>
+      ),
+  },
 ];
 
+interface DrawerLahan extends LahanRow {
+  userId: string;
+  tanggalDibuat: string;
+  catatan: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+interface AktivitasLahanItem {
+  key: string;
+  jenis: string;
+  tanggal: string;
+  tanggalRaw: string;
+  status: string;
+}
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  } catch { return iso; }
+}
+
 export default function LahanPage() {
+  const [lahanData, setLahanData] = useState<LahanRow[]>([]);
+  const [lahanRaw, setLahanRaw] = useState<Record<string, DrawerLahan>>({});
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [filterJenis, setFilterJenis] = useState<string | null>(null);
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedLahan, setSelectedLahan] = useState<DrawerLahan | null>(null);
+  const [drawerAktivitas, setDrawerAktivitas] = useState<AktivitasLahanItem[]>([]);
+  const [drawerLoading, setDrawerLoading] = useState(false);
+
+  useEffect(() => {
+    const uMap: Record<string, string> = {};
+    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+      snap.docs.forEach((d) => { uMap[d.id] = d.data().name ?? d.data().nama ?? d.id; });
+      setUserMap({ ...uMap });
+    });
+
+    const unsubLahan = onSnapshot(collection(db, "lahan"), (snap) => {
+      const raw: Record<string, DrawerLahan> = {};
+      const rows: LahanRow[] = snap.docs.map((d) => {
+        const data = d.data();
+        const jenis = (data.jenisLahan ?? data.jenis ?? "Sawah") as JenisLahan;
+        const lat = data.latitude ?? data.lat ?? null;
+        const lng = data.longitude ?? data.lng ?? null;
+        const row: LahanRow = {
+          key: d.id,
+          nama: data.nama ?? data.name ?? "—",
+          pemilik: uMap[data.userId] ?? data.userId ?? "—",
+          tanaman: data.jenis_tanaman ?? data.tanaman ?? data.tanamanJenis ?? "",
+          jenisLahan: jenis,
+          luas: data.luas ?? 0,
+          satuanLuas: data.satuanLuas ?? data.satuan ?? "ha",
+          emoji: jenisLahanEmoji[jenis] ?? "🌾",
+          hasGps: lat != null && lng != null,
+        };
+        raw[d.id] = { ...row, userId: data.userId ?? "", tanggalDibuat: data.createdAt ?? data.tanggalDibuat ?? "", catatan: data.catatan ?? "", lat, lng };
+        return row;
+      });
+      setLahanData(rows);
+      setLahanRaw(raw);
+      setLoading(false);
+    });
+
+    return () => { unsubUsers(); unsubLahan(); };
+  }, []);
+
+  const openDrawer = (record: LahanRow) => {
+    const raw = lahanRaw[record.key];
+    if (!raw) return;
+    setSelectedLahan({ ...raw, pemilik: userMap[raw.userId] ?? raw.userId ?? "—" });
+    setDrawerOpen(true);
+    setDrawerLoading(true);
+    setDrawerAktivitas([]);
+
+    const q = query(collection(db, "aktivitas"), where("lahanId", "==", record.key));
+    const unsub = onSnapshot(q, (snap) => {
+      const items = snap.docs
+        .map((d) => ({
+          key: d.id,
+          jenis: JENIS_AKTIVITAS_LABEL[(d.data().type ?? d.data().jenis) as JenisAktivitas] ?? d.data().type ?? "—",
+          tanggal: fmtDate(d.data().tanggalMulai),
+          tanggalRaw: d.data().tanggalMulai ?? "",
+          status: d.data().tanggalSelesai ? "selesai" : "berjalan",
+        }))
+        .sort((a, b) => b.tanggalRaw.localeCompare(a.tanggalRaw));
+      setDrawerAktivitas(items);
+      setDrawerLoading(false);
+      unsub();
+    });
+  };
+
+  const filtered = filterJenis
+    ? lahanData.filter((l) => l.jenisLahan === filterJenis)
+    : lahanData;
+
+  const sawahCount = lahanData.filter((l) => l.jenisLahan === "Sawah").length;
+  const kebunCount = lahanData.filter((l) => l.jenisLahan === "Kebun").length;
+  const gpsCount = lahanData.filter((l) => l.hasGps).length;
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -99,60 +212,119 @@ export default function LahanPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card variant="borderless" size="small">
-            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Total Lahan</Text>} value={580} styles={{ content: { color: "#F8FAFC", fontSize: 20 } }} />
+            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Total Lahan</Text>}
+              value={lahanData.length} styles={{ content: { color: "#F8FAFC", fontSize: 20 } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card variant="borderless" size="small">
-            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Total Luas</Text>} value={"1.240 Ha"} styles={{ content: { color: "#2D6A4F", fontSize: 20 } }} />
+            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Sawah</Text>}
+              value={sawahCount} styles={{ content: { color: "#2D6A4F", fontSize: 20 } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card variant="borderless" size="small">
-            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Siap Panen</Text>} value={32} styles={{ content: { color: "#E9C46A", fontSize: 20 } }} />
+            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Kebun</Text>}
+              value={kebunCount} styles={{ content: { color: "#22D3EE", fontSize: 20 } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card variant="borderless" size="small">
-            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Baru Ditanam</Text>} value={18} styles={{ content: { color: "#22D3EE", fontSize: 20 } }} />
+            <Statistic title={<Text style={{ color: "#94A3B8", fontSize: 12 }}>Dengan GPS</Text>}
+              value={gpsCount} styles={{ content: { color: "#E9C46A", fontSize: 20 } }} />
           </Card>
         </Col>
       </Row>
 
       <Card variant="borderless" style={{ marginBottom: 16 }}>
         <Space wrap>
-          <Select placeholder="Tanaman" style={{ width: 150 }} allowClear
+          <Select placeholder="Jenis Lahan" style={{ width: 150 }} allowClear
+            onChange={(val) => setFilterJenis(val ?? null)}
             options={[
-              { value: "Padi", label: "Padi" },
-              { value: "Jagung", label: "Jagung" },
-              { value: "Kedelai", label: "Kedelai" },
-              { value: "Cabai", label: "Cabai" },
-            ]}
-          />
-          <Select placeholder="Fase" style={{ width: 150 }} allowClear
-            options={[
-              { value: "Penyemaian", label: "Penyemaian" },
-              { value: "Vegetatif", label: "Vegetatif" },
-              { value: "Generatif", label: "Generatif" },
-              { value: "Pematangan", label: "Pematangan" },
-              { value: "Panen", label: "Panen" },
+              { value: "Sawah", label: "Sawah" },
+              { value: "Kebun", label: "Kebun" },
+              { value: "Pekarangan", label: "Pekarangan" },
+              { value: "Hutan", label: "Hutan" },
             ]}
           />
         </Space>
       </Card>
 
       <Card variant="borderless">
-        <Table columns={columns} dataSource={lahanData}
-          pagination={{ pageSize: 10, showTotal: (total) => `Total ${total} lahan` }}
-          size="middle" id="lahan-table"
-          onRow={(record) => ({
-            onClick: () => {
-              window.location.href = `/dashboard/lahan/${record.key}`;
-            },
-            style: { cursor: 'pointer' },
-          })}
-        />
+        <Spin spinning={loading}>
+          <Table
+            columns={columns}
+            dataSource={filtered}
+            pagination={{ pageSize: 10, showTotal: (total) => `Total ${total} lahan` }}
+            size="middle"
+            locale={{ emptyText: <Empty description="Belum ada data lahan" /> }}
+            onRow={(record) => ({
+              onClick: () => openDrawer(record),
+              style: { cursor: "pointer" },
+            })}
+          />
+        </Spin>
       </Card>
+
+      <Drawer
+        title={
+          <Space>
+            <Text style={{ fontSize: 24 }}>{selectedLahan?.emoji}</Text>
+            <div>
+              <div style={{ color: "#F8FAFC", fontWeight: 600 }}>{selectedLahan?.nama}</div>
+              <div style={{ color: "#94A3B8", fontSize: 12, fontWeight: 400 }}>
+                <Tag color={jenisLahanColor[selectedLahan?.jenisLahan ?? "Sawah"]}>{selectedLahan?.jenisLahan}</Tag>
+              </div>
+            </div>
+          </Space>
+        }
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width={480}
+      >
+        <Spin spinning={drawerLoading}>
+          <Descriptions column={1} size="small" style={{ marginBottom: 24 }}>
+            <Descriptions.Item label={<Space><UserOutlined /> Pemilik</Space>}>
+              <Text style={{ color: "#F8FAFC" }}>{selectedLahan?.pemilik}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Tanaman">
+              <Text style={{ color: "#F8FAFC" }}>{selectedLahan?.tanaman || "—"}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Luas">
+              <Text style={{ color: "#F8FAFC" }}>{selectedLahan?.luas} {selectedLahan?.satuanLuas}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label={<Space><EnvironmentOutlined /> GPS</Space>}>
+              {selectedLahan?.hasGps
+                ? <Text style={{ color: "#22D3EE" }}>{selectedLahan.lat?.toFixed(6)}, {selectedLahan.lng?.toFixed(6)}</Text>
+                : <Text style={{ color: "#475569" }}>Tidak tersedia</Text>}
+            </Descriptions.Item>
+            {selectedLahan?.catatan && (
+              <Descriptions.Item label="Catatan">
+                <Text style={{ color: "#94A3B8" }}>{selectedLahan.catatan}</Text>
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+
+          <Title level={5} style={{ color: "#F8FAFC", marginBottom: 12 }}>
+            Riwayat Aktivitas ({drawerAktivitas.length})
+          </Title>
+          {drawerAktivitas.length > 0 ? (
+            <div>
+              {drawerAktivitas.map((item) => (
+                <div key={item.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #1E293B" }}>
+                  <Space>
+                    <Tag color="cyan">{item.jenis}</Tag>
+                    <Tag color={item.status === "selesai" ? "green" : "orange"}>{item.status}</Tag>
+                  </Space>
+                  <Text style={{ color: "#94A3B8", fontSize: 12 }}>{item.tanggal}</Text>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty description="Belum ada aktivitas di lahan ini" />
+          )}
+        </Spin>
+      </Drawer>
     </div>
   );
 }

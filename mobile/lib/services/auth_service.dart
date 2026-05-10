@@ -22,7 +22,11 @@ class AuthService {
 
   /// Step 1: Send OTP to phone number (Indonesian +62 prefix).
   /// Returns verificationId on codeSent; throws [AuthException] on failure.
-  Future<String> sendOTP(String phoneNumber) async {
+  /// [onAutoVerified] is called when Android auto-reads the SMS — no manual OTP needed.
+  Future<String> sendOTP(
+    String phoneNumber, {
+    void Function(UserModel user)? onAutoVerified,
+  }) async {
     final completer = Completer<String>();
 
     await _auth.verifyPhoneNumber(
@@ -31,12 +35,17 @@ class AuthService {
       verificationCompleted: (PhoneAuthCredential credential) async {
         // Android auto-verification — sign in silently without OTP entry.
         try {
-          await _auth.signInWithCredential(credential);
+          final result = await _auth.signInWithCredential(credential);
+          if (result.user != null) {
+            final userModel = await _fetchOrCreateProfile(result.user!);
+            onAutoVerified?.call(userModel);
+          }
         } catch (e) {
           debugPrint('[AuthService] Auto-verification sign-in error: $e');
         }
       },
       verificationFailed: (FirebaseAuthException e) {
+        debugPrint('[AuthService] verificationFailed: ${e.code} — ${e.message}');
         if (!completer.isCompleted) {
           completer.completeError(AuthException(_mapError(e)));
         }
@@ -110,12 +119,15 @@ class AuthService {
   }
 
   /// Update existing profile fields (partial update).
+  /// Set [updateRegion] to true to always write kabupaten/kecamatan/desa,
+  /// even when null — this clears stale region values when the user resets them.
   Future<UserModel> updateProfile({
     String? name,
     String? namaKelompokTani,
     String? kabupaten,
     String? kecamatan,
     String? desa,
+    bool updateRegion = false,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw const AuthException('Sesi tidak ditemukan.');
@@ -123,9 +135,15 @@ class AuthService {
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (namaKelompokTani != null) updates['nama_kelompok_tani'] = namaKelompokTani;
-    if (kabupaten != null) updates['kabupaten'] = kabupaten;
-    if (kecamatan != null) updates['kecamatan'] = kecamatan;
-    if (desa != null) updates['desa'] = desa;
+    if (updateRegion) {
+      updates['kabupaten'] = kabupaten;
+      updates['kecamatan'] = kecamatan;
+      updates['desa'] = desa;
+    } else {
+      if (kabupaten != null) updates['kabupaten'] = kabupaten;
+      if (kecamatan != null) updates['kecamatan'] = kecamatan;
+      if (desa != null) updates['desa'] = desa;
+    }
 
     await _db.collection('users').doc(user.uid).update(updates);
 
@@ -179,19 +197,28 @@ class AuthService {
   }
 
   String _mapError(FirebaseAuthException e) {
+    debugPrint('[AuthService] FirebaseAuthException: ${e.code} — ${e.message}');
     switch (e.code) {
       case 'invalid-verification-code':
         return 'Kode OTP tidak valid. Silakan coba lagi.';
       case 'session-expired':
         return 'Sesi OTP kadaluarsa. Minta kode baru.';
       case 'invalid-phone-number':
-        return 'Nomor HP tidak valid.';
+        return 'Nomor HP tidak valid. Pastikan format benar (contoh: 812xxxxxxx).';
       case 'too-many-requests':
         return 'Terlalu banyak percobaan. Coba beberapa saat lagi.';
       case 'quota-exceeded':
         return 'Kuota SMS habis. Hubungi administrator.';
+      case 'app-not-authorized':
+        return 'Aplikasi belum diotorisasi Firebase. (app-not-authorized)';
+      case 'billing-not-enabled':
+        return 'Firebase perlu paket Blaze untuk kirim SMS nyata. (billing-not-enabled)';
+      case 'network-request-failed':
+        return 'Tidak ada koneksi internet. Periksa jaringan Anda.';
+      case 'missing-client-identifier':
+        return 'Verifikasi perangkat gagal. Pastikan Play Services aktif. (missing-client-identifier)';
       default:
-        return 'Terjadi kesalahan. Silakan coba lagi. (${e.code})';
+        return 'Gagal mengirim OTP. (${e.code}: ${e.message})';
     }
   }
 }

@@ -9,9 +9,9 @@ class LahanModel {
     required this.luas,
     this.satuanLuas = 'Ha',
     this.emoji = '🌾',
-    this.tanggalTanam,
-    this.fase = 'Persiapan',
-    this.progress = 0.0,
+    this.jenisLahan = 'Sawah',
+    this.latitude,
+    this.longitude,
     this.createdAt,
   });
 
@@ -22,10 +22,19 @@ class LahanModel {
   final double luas;
   final String satuanLuas;
   final String emoji;
-  final DateTime? tanggalTanam;
-  final String fase;
-  final double progress;
+  final String jenisLahan;
+  final double? latitude;
+  final double? longitude;
   final DateTime? createdAt;
+
+  bool get hasLocation => latitude != null && longitude != null;
+
+  String get locationDisplay {
+    if (!hasLocation) return '';
+    final lat = latitude!.toStringAsFixed(6);
+    final lng = longitude!.toStringAsFixed(6);
+    return '$lat, $lng';
+  }
 
   /// Create from Firestore document map.
   factory LahanModel.fromMap(Map<String, dynamic> map, String id) {
@@ -37,11 +46,9 @@ class LahanModel {
       luas: (map['luas'] as num?)?.toDouble() ?? 0,
       satuanLuas: map['satuanLuas'] as String? ?? 'Ha',
       emoji: map['emoji'] as String? ?? '🌾',
-      tanggalTanam: map['tanggalTanam'] != null
-          ? DateTime.tryParse(map['tanggalTanam'] as String)
-          : null,
-      fase: map['fase'] as String? ?? 'Persiapan',
-      progress: (map['progress'] as num?)?.toDouble() ?? 0,
+      jenisLahan: map['jenisLahan'] as String? ?? 'Sawah',
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'] as String)
           : null,
@@ -57,9 +64,9 @@ class LahanModel {
       'luas': luas,
       'satuanLuas': satuanLuas,
       'emoji': emoji,
-      'tanggalTanam': tanggalTanam?.toIso8601String(),
-      'fase': fase,
-      'progress': progress,
+      'jenisLahan': jenisLahan,
+      'latitude': latitude,
+      'longitude': longitude,
       'createdAt': createdAt?.toIso8601String(),
     };
   }
@@ -72,9 +79,9 @@ class LahanModel {
     double? luas,
     String? satuanLuas,
     String? emoji,
-    DateTime? tanggalTanam,
-    String? fase,
-    double? progress,
+    String? jenisLahan,
+    double? latitude,
+    double? longitude,
     DateTime? createdAt,
   }) {
     return LahanModel(
@@ -85,9 +92,9 @@ class LahanModel {
       luas: luas ?? this.luas,
       satuanLuas: satuanLuas ?? this.satuanLuas,
       emoji: emoji ?? this.emoji,
-      tanggalTanam: tanggalTanam ?? this.tanggalTanam,
-      fase: fase ?? this.fase,
-      progress: progress ?? this.progress,
+      jenisLahan: jenisLahan ?? this.jenisLahan,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -96,6 +103,14 @@ class LahanModel {
   String get luasDisplay =>
       '${luas % 1 == 0 ? luas.toInt() : luas} $satuanLuas';
 }
+
+/// Jenis lahan options with emoji.
+const jenisLahanOptions = <String, String>{
+  'Sawah': '🌾',
+  'Kebun': '🌳',
+  'Pekarangan': '🏡',
+  'Hutan': '🌲',
+};
 
 /// Available crop emoji mappings for selection.
 const cropEmojis = <String, String>{
@@ -108,12 +123,3 @@ const cropEmojis = <String, String>{
   'Buah': '🍈',
   'Lainnya': '🌿',
 };
-
-/// Growth phase options.
-const growthPhases = [
-  'Persiapan',
-  'Vegetatif',
-  'Generatif',
-  'Pematangan',
-  'Panen',
-];

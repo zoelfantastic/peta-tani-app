@@ -10,27 +10,41 @@ export interface Petani {
   lastActive: string;
 }
 
+export type JenisLahan = "Sawah" | "Kebun" | "Pekarangan" | "Hutan";
+
 export interface Lahan {
   id: string;
   nama: string;
   pemilik: string;
   pemilikId: string;
-  luas: string;
   tanaman: string;
-  fase: "persiapan" | "vegetatif" | "generatif" | "panen";
-  tanggalTanam: string;
-  perkiraanPanen: string;
-  progress: number;
-  lokasi: string;
+  jenisLahan: JenisLahan;
+  luas: number;
+  satuanLuas: string;
+  emoji: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
+// Stored as the Dart enum name (type.name)
 export type JenisAktivitas =
-  | "Olah Tanah"
-  | "Penyemaian"
-  | "Pemupukan"
-  | "Penyiraman"
-  | "Pengendalian Hama"
-  | "Panen";
+  | "olahTanah"
+  | "persemaian"
+  | "penanaman"
+  | "pemupukan"
+  | "pengendalianOpt"
+  | "penyiangan"
+  | "panen";
+
+export const JENIS_AKTIVITAS_LABEL: Record<JenisAktivitas, string> = {
+  olahTanah: "Olah Tanah",
+  persemaian: "Persemaian",
+  penanaman: "Penanaman",
+  pemupukan: "Pemupukan",
+  pengendalianOpt: "Pengendalian OPT",
+  penyiangan: "Penyiangan",
+  panen: "Panen",
+};
 
 export interface Aktivitas {
   id: string;
@@ -40,18 +54,30 @@ export interface Aktivitas {
   lahanId: string;
   jenis: JenisAktivitas;
   tanaman: string;
-  catatan: string;
+  catatan: string | null;
   tanggal: string;
   tanggalSelesai: string | null;
-  waktu: string;
   status: "berjalan" | "selesai";
+  // Alat
+  alatYangDigunakan: string | null;
+  kebutuhanBahanBakar: number | null;
+  biayaBahanBakar: number | null;
+  jumlahAlatUnit: number | null;
+  // Saprodi
+  jenisSaprodi: string | null;
+  jumlahSaprodi: number | null;
+  satuanSaprodi: string | null;
+  biayaSaprodi: number | null;
+  // HOK
+  jumlahTenagaKerja: number | null;
+  biayaHok: number | null;
 }
 
 export interface KPIData {
   totalPetani: number;
   totalLahan: number;
   aktivitasBulanIni: number;
-  siapPanen: number;
+  totalPanen: number;
   perubahanPetani: number;
   perubahanLahan: number;
   perubahanAktivitas: number;
@@ -65,6 +91,5 @@ export interface Reminder {
   lahanNama: string;
   jenis: JenisAktivitas;
   tanggal: string;
-  waktu: string;
   isDone: boolean;
 }

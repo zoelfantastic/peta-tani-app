@@ -40,9 +40,10 @@ class AppColors {
 
   // ─── Activity Colors ───────────────────────────────────
   static const Color olahTanah = Color(0xFF8B5E3C);
-  static const Color semai = Color(0xFF2D6A4F);
-  static const Color pupuk = Color(0xFF3B82F6);
-  static const Color penyiraman = Color(0xFF06B6D4);
+  static const Color persemaian = Color(0xFF2D6A4F);
+  static const Color penanaman = Color(0xFF40916C);
+  static const Color pemupukan = Color(0xFF3B82F6);
+  static const Color pengendalianOpt = Color(0xFFE76F51);
+  static const Color penyiangan = Color(0xFF84CC16);
   static const Color panen = Color(0xFFE9C46A);
-  static const Color hama = Color(0xFFE63946);
 }

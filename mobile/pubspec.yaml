@@ -25,6 +25,9 @@ dependencies:
   firebase_auth: ^5.5.3
   cloud_firestore: ^5.6.6
 
+  # Location
+  geolocator: ^13.0.2
+
 
   # Intl & Formatting
   intl: ^0.20.2

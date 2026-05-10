@@ -78,17 +78,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Step 1: Send OTP to phone.
+  /// If Android auto-reads the SMS, state is updated automatically (no manual OTP needed).
   Future<String?> sendOTP(String phoneNumber) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final verificationId = await _authService.sendOTP(phoneNumber);
+      final verificationId = await _authService.sendOTP(
+        phoneNumber,
+        onAutoVerified: (user) {
+          state = AuthState(
+            status: user.isProfileComplete
+                ? AuthStatus.authenticated
+                : AuthStatus.needsProfile,
+            user: user,
+          );
+        },
+      );
       state = state.copyWith(isLoading: false);
       return verificationId;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Gagal mengirim kode OTP. Periksa nomor HP Anda.',
-      );
+      debugPrint('[AuthNotifier] sendOTP error: $e');
+      final msg = e is AuthException ? e.message : 'Gagal mengirim OTP. ($e)';
+      state = state.copyWith(isLoading: false, error: msg);
       return null;
     }
   }
@@ -109,9 +119,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, error: e.message);
       return false;
     } catch (e) {
+      debugPrint('[AuthNotifier] verifyOTP error: $e');
       state = state.copyWith(
         isLoading: false,
-        error: 'Maaf, ada masalah. Silakan coba lagi.',
+        error: 'Maaf, ada masalah. Silakan coba lagi. ($e)',
       );
       return false;
     }
@@ -149,6 +160,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? kabupaten,
     String? kecamatan,
     String? desa,
+    bool updateRegion = false,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -158,6 +170,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         kabupaten: kabupaten,
         kecamatan: kecamatan,
         desa: desa,
+        updateRegion: updateRegion,
       );
       state = AuthState(status: AuthStatus.authenticated, user: user);
       return true;

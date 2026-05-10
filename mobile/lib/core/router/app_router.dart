@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/screens/splash_screen.dart';
@@ -15,7 +16,7 @@ import '../../features/aktivitas/screens/aktivitas_detail_screen.dart';
 import '../../features/riwayat/screens/riwayat_screen.dart';
 import '../../features/profil/screens/profil_screen.dart';
 import '../../shared/widgets/app_shell.dart';
-import '../../services/lahan_service.dart';
+import '../../providers/lahan_provider.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -106,13 +107,14 @@ final GoRouter appRouter = GoRouter(
       path: '/lahan/edit/:id',
       builder: (context, state) {
         final id = state.pathParameters['id'] ?? '';
-        // Fetch lahan synchronously from service (already loaded)
-        return FutureBuilder(
-          future: LahanService.instance.getById(id),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              return LahanFormScreen(lahan: snapshot.data);
-            }
+        return Consumer(
+          builder: (context, ref, _) {
+            final lahan = ref
+                .read(lahanProvider)
+                .lahanList
+                .where((l) => l.id == id)
+                .firstOrNull;
+            if (lahan != null) return LahanFormScreen(lahan: lahan);
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );

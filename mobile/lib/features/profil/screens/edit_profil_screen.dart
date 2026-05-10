@@ -47,15 +47,15 @@ class _EditProfilScreenState extends ConsumerState<EditProfilScreen> {
     final name = _nameController.text.trim();
     final kelompok = _kelompokController.text.trim();
 
-    // Only send fields that changed
     final success = await ref.read(authProvider.notifier).updateProfile(
           name: name != (widget.user.name ?? '') ? name : null,
           namaKelompokTani: kelompok != (widget.user.namaKelompokTani ?? '')
               ? (kelompok.isEmpty ? '' : kelompok)
               : null,
-          kabupaten: _kabupaten != widget.user.kabupaten ? _kabupaten : null,
-          kecamatan: _kecamatan != widget.user.kecamatan ? _kecamatan : null,
-          desa: _desa != widget.user.desa ? _desa : null,
+          kabupaten: _kabupaten,
+          kecamatan: _kecamatan,
+          desa: _desa,
+          updateRegion: true,
         );
 
     if (!mounted) return;

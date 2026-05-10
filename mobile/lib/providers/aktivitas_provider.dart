@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/activity_types.dart';
@@ -18,17 +19,16 @@ class AktivitasState {
   final bool isLoading;
   final String? error;
 
-  /// Get aktivitas grouped by month (for timeline display).
+  /// Aktivitas grouped by month label (for timeline display).
   Map<String, List<AktivitasModel>> get groupedByMonth {
     final map = <String, List<AktivitasModel>>{};
     for (final a in aktivitasList) {
-      final key = _monthKey(a.tanggalMulai);
-      map.putIfAbsent(key, () => []).add(a);
+      map.putIfAbsent(_monthKey(a.tanggalMulai), () => []).add(a);
     }
     return map;
   }
 
-  /// Get only in-progress activities.
+  /// Only in-progress activities.
   List<AktivitasModel> get berjalanList =>
       aktivitasList.where((a) => a.isBerjalan).toList();
 
@@ -44,10 +44,10 @@ class AktivitasState {
         .length;
   }
 
-  /// Recent N activities.
+  /// Most recent N activities.
   List<AktivitasModel> recent(int n) => aktivitasList.take(n).toList();
 
-  /// Upcoming activities
+  /// Future-dated activities sorted ascending.
   List<AktivitasModel> get upcomingList {
     final now = DateTime.now();
     return aktivitasList.where((a) => a.tanggalMulai.isAfter(now)).toList()
@@ -93,8 +93,12 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
 
   final _service = AktivitasService.instance;
 
-  /// Load all aktivitas.
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+
+  /// Load all aktivitas for the current user from Firestore.
+  /// No-op if user is not authenticated.
   Future<void> loadAll() async {
+    if (_uid == null) return;
     state = state.copyWith(isLoading: true, error: null);
     try {
       final list = await _service.getAll();
@@ -108,12 +112,20 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
     }
   }
 
-  /// Check if a lahan has a running activity (blocking logic).
-  Future<AktivitasModel?> getRunningActivity(String lahanId) async {
-    return _service.getRunningActivity(lahanId);
+  /// Clear all state — called on logout.
+  void clearState() {
+    state = const AktivitasState();
   }
 
-  /// Add a new aktivitas.
+  /// Returns any in-progress activity for the given lahan from loaded state.
+  /// Call loadAll() first to ensure data is fresh.
+  AktivitasModel? getRunningActivity(String lahanId) {
+    return state.aktivitasList
+        .where((a) => a.lahanId == lahanId && a.isBerjalan)
+        .firstOrNull;
+  }
+
+  /// Add a new aktivitas to Firestore.
   Future<bool> add({
     required String lahanId,
     required String lahanName,
@@ -123,12 +135,34 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
     String? catatan,
     double? jumlah,
     String? satuan,
+    // Alat
+    String? alatYangDigunakan,
+    double? kebutuhanBahanBakar,
+    double? biayaBahanBakar,
+    double? jumlahAlatUnit,
+    // Saprodi
+    String? jenisSaprodi,
+    double? jumlahSaprodi,
+    String? satuanSaprodi,
+    double? biayaSaprodi,
+    // HOK
+    double? jumlahTenagaKerja,
+    double? biayaHok,
   }) async {
+    final uid = _uid;
+    if (uid == null) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Sesi tidak ditemukan, silakan login ulang',
+      );
+      return false;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final aktivitas = AktivitasModel(
         id: '',
-        userId: 'mock_user',
+        userId: uid,
         lahanId: lahanId,
         lahanName: lahanName,
         type: type,
@@ -137,6 +171,17 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
         catatan: catatan,
         jumlah: jumlah,
         satuan: satuan,
+        createdAt: DateTime.now(),
+        alatYangDigunakan: alatYangDigunakan,
+        kebutuhanBahanBakar: kebutuhanBahanBakar,
+        biayaBahanBakar: biayaBahanBakar,
+        jumlahAlatUnit: jumlahAlatUnit,
+        jenisSaprodi: jenisSaprodi,
+        jumlahSaprodi: jumlahSaprodi,
+        satuanSaprodi: satuanSaprodi,
+        biayaSaprodi: biayaSaprodi,
+        jumlahTenagaKerja: jumlahTenagaKerja,
+        biayaHok: biayaHok,
       );
       final created = await _service.add(aktivitas);
 
@@ -145,7 +190,8 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
         await NotificationService.instance.scheduleReminder(
           id: created.id.hashCode,
           title: 'Pengingat Aktivitas: ${type.label}',
-          body: 'Saatnya melakukan ${type.label.toLowerCase()} di $lahanName',
+          body:
+              'Saatnya melakukan ${type.label.toLowerCase()} di $lahanName',
           scheduledDate: tanggalMulai,
         );
       }
@@ -153,6 +199,7 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
       await loadAll();
       return true;
     } catch (e) {
+      debugPrint('[AktivitasNotifier] add error: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Gagal menyimpan aktivitas',
@@ -161,7 +208,7 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
     }
   }
 
-  /// Mark an activity as completed.
+  /// Mark an activity as completed in Firestore.
   Future<bool> markComplete(String id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -169,12 +216,16 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
       await loadAll();
       return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Gagal menandai selesai');
+      debugPrint('[AktivitasNotifier] markComplete error: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Gagal menandai selesai',
+      );
       return false;
     }
   }
 
-  /// Delete an aktivitas.
+  /// Delete an aktivitas from Firestore.
   Future<bool> delete(String id) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
@@ -182,6 +233,7 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
       await loadAll();
       return true;
     } catch (e) {
+      debugPrint('[AktivitasNotifier] delete error: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Gagal menghapus aktivitas',
@@ -195,7 +247,7 @@ class AktivitasNotifier extends StateNotifier<AktivitasState> {
   }
 }
 
-// ─── Providers ───────────────────────────────────────────
+// ─── Provider ────────────────────────────────────────────
 
 final aktivitasProvider =
     StateNotifierProvider<AktivitasNotifier, AktivitasState>((ref) {

@@ -8,7 +8,7 @@ import '../../../providers/auth_provider.dart';
 
 /// OTP verification screen — shown after phone number submission.
 /// Features:
-/// - 4-digit OTP input with auto-focus
+/// - 6-digit OTP input with auto-focus
 /// - Auto-submit when all digits entered
 /// - Resend countdown timer (30s)
 /// - Error handling with user-friendly messages
@@ -24,10 +24,10 @@ class OtpScreen extends ConsumerStatefulWidget {
 class _OtpScreenState extends ConsumerState<OtpScreen>
     with SingleTickerProviderStateMixin {
   final List<TextEditingController> _controllers = List.generate(
-    4,
+    6,
     (_) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   // Resend timer
   Timer? _resendTimer;
@@ -84,7 +84,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
   }
 
   void _onOTPChanged(int index, String value) {
-    if (value.isNotEmpty && index < 3) {
+    if (value.isNotEmpty && index < 5) {
       _focusNodes[index + 1].requestFocus();
     }
     if (value.isEmpty && index > 0) {
@@ -93,7 +93,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
 
     // Auto-verify when all digits entered
     final otp = _controllers.map((c) => c.text).join();
-    if (otp.length == 4) {
+    if (otp.length == 6) {
       _verifyOTP(otp);
     }
   }
@@ -146,7 +146,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    // Listen for errors
+    // Listen for auth state changes — handles both manual OTP and auto-verification
     ref.listen<AuthState>(authProvider, (prev, next) {
       if (next.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,6 +157,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
           ),
         );
         ref.read(authProvider.notifier).clearError();
+      }
+      // Auto-navigate when verificationCompleted fires (Android auto-read SMS)
+      if (prev?.status != next.status) {
+        if (next.status == AuthStatus.authenticated) {
+          context.go('/beranda');
+        } else if (next.status == AuthStatus.needsProfile) {
+          context.go('/setup-profil');
+        }
       }
     });
 
@@ -207,7 +215,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
               const SizedBox(height: 8),
 
               Text(
-                'Masukkan 4 digit kode yang\ndikirim ke $_formattedPhone',
+                'Masukkan 6 digit kode yang\ndikirim ke $_formattedPhone',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -233,15 +241,15 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(4, (index) {
+                  children: List.generate(6, (index) {
                     final hasValue = _controllers[index].text.isNotEmpty;
                     final isFocused = _focusNodes[index].hasFocus;
 
                     return AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 64,
-                      height: 64,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      width: 48,
+                      height: 56,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
                         color: hasValue
                             ? AppColors.primary.withAlpha(8)
@@ -358,25 +366,24 @@ class _OtpScreenState extends ConsumerState<OtpScreen>
 
               const SizedBox(height: 48),
 
-              // ─── Hint ────────────────────────
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withAlpha(15),
+                  color: AppColors.info.withAlpha(15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.warning.withAlpha(40)),
+                  border: Border.all(color: AppColors.info.withAlpha(40)),
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.info_outline_rounded,
-                      color: AppColors.warning,
+                      color: AppColors.info,
                       size: 20,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Untuk pengujian, gunakan kode: 1234',
+                        'Kode OTP dikirim via SMS ke nomor Anda. Berlaku selama 60 detik.',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,

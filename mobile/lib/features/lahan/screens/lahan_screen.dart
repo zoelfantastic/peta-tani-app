@@ -8,20 +8,19 @@ import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/loading_state.dart';
 
 /// Lahan list screen — shows all registered farmlands.
-/// Tap card → Detail, FAB → Add new lahan.
 class LahanScreen extends ConsumerWidget {
   const LahanScreen({super.key});
 
-  Color _faseColor(String fase) {
-    switch (fase) {
-      case 'Vegetatif':
+  Color _jenisLahanColor(String jenisLahan) {
+    switch (jenisLahan) {
+      case 'Sawah':
+        return AppColors.info;
+      case 'Kebun':
         return AppColors.primary;
-      case 'Generatif':
-        return AppColors.accent;
-      case 'Pematangan':
+      case 'Pekarangan':
         return AppColors.warning;
-      case 'Panen':
-        return AppColors.panen;
+      case 'Hutan':
+        return const Color(0xFF2D5A1E);
       default:
         return AppColors.textSecondary;
     }
@@ -73,13 +72,12 @@ class LahanScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 20),
 
-                      // Lahan cards
                       ...lahanList.map(
                         (lahan) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _LahanCard(
                             lahan: lahan,
-                            faseColor: _faseColor(lahan.fase),
+                            jenisColor: _jenisLahanColor(lahan.jenisLahan),
                             onTap: () =>
                                 context.push('/lahan/detail/${lahan.id}'),
                           ),
@@ -87,7 +85,6 @@ class LahanScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
 
-                      // Add button
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -108,12 +105,12 @@ class LahanScreen extends ConsumerWidget {
 class _LahanCard extends StatelessWidget {
   const _LahanCard({
     required this.lahan,
-    required this.faseColor,
+    required this.jenisColor,
     required this.onTap,
   });
 
   final LahanModel lahan;
-  final Color faseColor;
+  final Color jenisColor;
   final VoidCallback onTap;
 
   @override
@@ -162,95 +159,91 @@ class _LahanCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // Jenis lahan badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: faseColor.withAlpha(20),
+                        color: jenisColor.withAlpha(20),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        lahan.fase,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            jenisLahanOptions[lahan.jenisLahan] ?? '🌱',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            lahan.jenisLahan,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: jenisColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (lahan.hasLocation) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 13,
+                        color: AppColors.primary.withAlpha(180),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        lahan.locationDisplay,
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: faseColor,
+                          fontSize: 11,
+                          color: AppColors.textHint,
+                          fontFamily: 'monospace',
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: lahan.progress,
-                    minHeight: 6,
-                    backgroundColor: AppColors.divider,
-                    valueColor: AlwaysStoppedAnimation<Color>(faseColor),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today_rounded,
-                      size: 14,
-                      color: AppColors.textHint,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      lahan.tanggalTanam != null
-                          ? 'Tanam: ${_formatDate(lahan.tanggalTanam!)}'
-                          : 'Belum ditanam',
-                      style: const TextStyle(
-                        fontSize: 12,
+                      const Spacer(),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
                         color: AppColors.textHint,
                       ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${(lahan.progress * 100).toInt()}%',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: faseColor,
+                    ],
+                  ),
+                ] else ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_off_rounded,
+                        size: 13,
+                        color: AppColors.textHint,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: AppColors.textHint,
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Belum ada titik lokasi',
+                        style: TextStyle(fontSize: 11, color: AppColors.textHint),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppColors.textHint,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Agu',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
-    ];
-    return '${date.day} ${months[date.month]} ${date.year}';
   }
 }
