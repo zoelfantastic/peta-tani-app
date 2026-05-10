@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1021522308088",
+    "project_id": "petatani-dev",
+    "storage_bucket": "petatani-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021522308088:android:563b4f5b8a4bd40900840d",
+        "android_client_info": {
+          "package_name": "com.petatani.peta_tani"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAk7KnbrphPnD6KKfbEhjsvSG5pFX6zjwg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
